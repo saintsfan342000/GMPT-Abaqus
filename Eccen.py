@@ -27,11 +27,10 @@ except IndexError:
     ecc = 0
 
 # [0] rho, [1]Z, [2]Theta, [3] NodeNum
-NC = n.load('./ConstructionFiles/node_coords_all.npy')
-NI = n.load('./ConstructionFiles/node_indices_all.npy')
-nc_cors = n.load('./ConstructionFiles/node_coords_cors.npy')
-nc_med = n.load('./ConstructionFiles/node_coords_med.npy')
-nc_fine = n.load('./ConstructionFiles/node_coords_fine.npy')
+NC = n.load('./ConstructionFiles/nc_all.npy')
+nc_cors = n.load('./ConstructionFiles/nc_cors.npy')
+nc_med = n.load('./ConstructionFiles/nc_med.npy')
+nc_fine = n.load('./ConstructionFiles/nc_fine.npy')
 
 ID = n.min(nc_med[:,0])
 if ID != n.min(nc_cors[:,0]):

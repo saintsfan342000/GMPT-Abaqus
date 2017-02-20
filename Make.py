@@ -27,8 +27,8 @@ else:
     
     inpname = inpname.split('.')[0] # In case I give an extension.
 
-    Lg = '0.2'
-    Ltop = '1.3'  # Length of thick section above radius/chamf
+    Lg = '2.0'
+    Ltop = '0.5'  # Length of thick section above radius/chamf
     ODtop = '1.9685'    # Radius of thick section    
     R = '0.125'    # Radius of chamf
     
