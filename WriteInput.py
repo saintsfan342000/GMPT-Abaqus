@@ -25,22 +25,21 @@ if not( constit in ['vm', 'VM', 'H8', 'h8', 'anis', 'ANIS']):
     raise ValueError("Bad constit given '{}'.\nMust be 'vm', 'VM', 'H8', 'anis', 'ANIS'.".format(constit))
 
 # Open up TT-Summary to get the limit loads and some other info
-key = read_excel('TT-Summary.xlsx',sheetname='Summary',header=None,index_col=None,skiprows=1).values
+key = read_excel('PT-Summary.xlsx',sheetname='Summary',header=None,index_col=None,skiprows=1).values
 key = key[ key[:,0] == expt ]
-a_true, R, t, force, torque, dmax = n.mean(key[:,[2,3,4,9,10,-2]], axis=0) # Since this has shape (1,...)
-torque*=(2*pi*R*R*t)*500 # torque to force
+a_true, R, t, force, press, dmax = n.mean(key[:,[2,3,4,9,10,-2]], axis=0) # Since this has shape (1,...)
+press*=(t/R)*500 # hoop stres to pressure
 # The *500 is b/c abaqus behaves odd when the cloads are O(1) 
 # The behavior is normal when the cloads are O(1000)
 # We'll divide the max LPF by 500 further down
-K = a_true/R # load ratio
-force = K*torque # force
+K = 2*pi*a_true*R*R #  
+force = K*press # force
 # Disp. control:  Monitor axial disp
-# Can't monitor rotation (UR3 of a node is not rot'n about z-axis)
 riks_DOF_num = 3
-riks_DOF_val = 1.2*(dmax*0.63)/2
+riks_DOF_val = 1.2*(dmax*4)/2
 
 print('Cload 3 magnitude: {:.2f}'.format(force))
-print('Cload 6 magnitude: {:.2f}'.format(torque))
+print('Dsload magnitude:  {:.2f}'.format(press))
 print('Max displacement of Riks Node = {:.8f}'.format(riks_DOF_val))
 
 # Load up the node and element lists
@@ -146,6 +145,8 @@ fid.write('*surface, type=node, name=SURF_TOPSURFACE\n' +
 fid.write('*surface, type=node, name=SURF_BOTSURFACE\n' +
           'INSTANCE.NS_BOTTOMSURFACE\n'
           )
+fid.write('*surface, type=element, name=SURF_IDSURFACE\n' +
+          'INSTANCE.ES_WHOLEID, S6\n')
 # Kinematic coupling
 fid.write('*orientation, name=ORI_COUPLING, system=cylindrical, definition=coordinates\n' +
           '0, 0, 0, 0, 0, 1\n'
@@ -207,9 +208,11 @@ if not n.isnan(a_true):
               )
     fid.write('**[1]Inital arc len, [2]total step, [3]minimum increm, [4]max increm (no max if blank), [5]Max LPF, [6]Node whose disp is monitored, [7]DOF, [8]Max Disp\n')
     fid.write('*cload\n' +
-              'ASSEMBLY.NS_RPTOP, 3, {:.5f}\n'.format(force) + 
-              'ASSEMBLY.NS_RPTOP, 6, {:.5f}\n'.format(torque)
+              'ASSEMBLY.NS_RPTOP, 3, {:.5f}\n'.format(force)
               )
+    fid.write('*dsload\n' +
+              'SURF_IDSURFACE, P, {:.5f}\n'.format(press)
+             )
 else:
     fid.write('*static\n' +
               '0.005, 1., 1e-05, .005\n'
@@ -220,13 +223,10 @@ else:
 fid.write('*output, field, frequency=1\n')
 fid.write('** COORn must be called under history output, but COORD can be called in field\n')
 fid.write('*node output, nset=INSTANCE.NS_DISPROT_LO\n' +   # disprot nodesets
-          'U, UR, COORD\n'
-          )
-fid.write('*node output, nset=INSTANCE.NS_DISPROT_HI\n' +
-          'U, UR, COORD\n'
+          'U, UR\n'
           )
 fid.write('*node output, nset=INSTANCE.NS_DISPROT_NEW\n' +
-          'U, UR, COORD\n'
+          'U, UR\n'
           )
 fid.write('*node output, nset=ASSEMBLY.NS_RPTOP\n' +    # refpt node
           'U, UR, CF\n'
@@ -237,9 +237,9 @@ fid.write('*node output, nset=ASSEMBLY.NS_RPBOT\n' +
 fid.write('*node output, nset=INSTANCE.NS_RADIALCONTRACTION\n' +    # radial contraction set
           'U, UR\n'
           )
-for i in ['ES_Z', 'ES_TH', 'ES_TH_BACK']:
+for i in ['ES_Z', 'ES_THICKNESS', 'ES_THICKNESS_BACK']:
     fid.write('*element output, elset=INSTANCE.{}, directions=YES\n'.format(i) +    # sts, stn in element sets
-              'S, PE, LE, COORD'
+              'S, PE, LE, P, COORD'
               )
     if constit in ['H8','h8','anis','ANIS']:
         fid.write(', SDV1, SDV2\n')
