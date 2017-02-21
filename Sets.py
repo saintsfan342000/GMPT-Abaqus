@@ -89,6 +89,34 @@ for i,no in enumerate(nodenums):
         fid.write('{:.0f}\n'.format(no))
     else:
         fid.write('{:.0f}, '.format(no))
+# NS_AxialSymm
+# A set of nodes on the two edges if we've done half-ring
+dq = n.diff(nc_cors[:,2]).max()
+if n.isclose(nc_cors[:,2].max(),(2*pi-dq),rtol=.001):
+    fullring = True
+else:
+    fullring = False
+if not fullring:
+    fid.write('*nset, nset=NS_AXIALSYMM\n')
+    nodenums = n.empty(0)
+    rng = (ni_fine[:,2] == ni_fine[:,2].min()) | (ni_fine[:,2] == ni_fine[:,2].max())
+    nodenums = hstack(( nodenums, ni_fine[rng,3] ))
+    rng = (ni_med[:,2] == ni_med[:,2].min()) | (ni_med[:,2] == ni_med[:,2].max())
+    nodenums = hstack(( nodenums, ni_med[rng,3] ))
+    rng = (ni_cors[:,2] == ni_cors[:,2].min()) | (ni_cors[:,2] == ni_cors[:,2].max())
+    nodenums = hstack(( nodenums, ni_cors[rng,3] ))
+    rng = (ni_ref1_mid[:,2] == ni_ref1_mid[:,2].min()) | (ni_ref1_mid[:,2] == ni_ref1_mid[:,2].max())
+    nodenums = hstack(( nodenums, ni_ref1_mid[rng,3] ))
+    rng = (ni_ref1_r[:,2] == ni_ref1_r[:,2].min()) | (ni_ref1_r[:,2] == ni_ref1_r[:,2].max())
+    nodenums = hstack(( nodenums, ni_ref1_r[rng,3] ))
+    rng = (ni_ref1_mid[:,2] == ni_ref1_mid[:,2].min()) | (ni_ref1_mid[:,2] == ni_ref1_mid[:,2].max())
+    nodenums = hstack(( nodenums, ni_ref1_mid[rng,3] ))
+    for i,no in enumerate(nodenums):
+        if ((i+1)%16 == 0) or (i == len(nodenums)-1):
+            fid.write('{:.0f}\n'.format(no))
+        else:
+            fid.write('{:.0f}, '.format(no))
+
     
 ################
 # Element sets #

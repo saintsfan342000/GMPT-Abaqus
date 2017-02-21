@@ -4,10 +4,9 @@ from numpy import (sqrt, linspace, asarray,
 from sys import argv
 
 '''
-Rectangular:
-X, [:,0] = thru thickness
-Y, [:,1] = Axial coord
-Z, [:,2] = Angle coordinate theta (radians)
+r, [:,0] = thru thickness/radial
+z, [:,1] = Axial coord
+q, [:,2] = Angle coordinate theta (radians)
 '''
 
 ni3d_fine = n.load('./ConstructionFiles/ni3d_fine.npy')
@@ -18,25 +17,31 @@ ni3d_ref1_r = n.load('./ConstructionFiles/ni3d_ref1_r.npy')
 ni3d_ref1_q = n.load('./ConstructionFiles/ni3d_ref1_q.npy')
 ni3d_ref2_q = n.load('./ConstructionFiles/ni3d_ref2_q.npy')
 nc_cors = n.load('./ConstructionFiles/nc_cors.npy')
-nc_med = n.load('./ConstructionFiles/nc_med.npy')
-nc_fine = n.load('./ConstructionFiles/nc_fine.npy')
 
-del nc_fine
-del nc_med
+# Check if this is full ring (2pi) or half model,
+# as this affects connectivity
+dq = n.diff(nc_cors[:,2]).max()
+if n.isclose(nc_cors[:,2].max(),(2*pi-dq),rtol=.001):
+    fullring = True
+else:
+    fullring = False
 del nc_cors
 
 # Mesh definitions
 num_el_fine_r = ni3d_fine.shape[0] - 1
 num_el_fine_z = ni3d_fine.shape[1] - 1
 num_el_fine_q = ni3d_fine.shape[2]
+if not fullring:  num_el_fine_q-=1
 num_el_fine_tot = num_el_fine_q*num_el_fine_z*num_el_fine_r
 num_el_med_r = ni3d_med.shape[0] - 1
 num_el_med_z = ni3d_med.shape[1] - 1
 num_el_med_q = ni3d_med.shape[2]
+if not fullring:  num_el_med_q-=1
 num_el_med_tot = num_el_med_q*num_el_med_z*num_el_med_r
 num_el_cors_r = ni3d_cors.shape[0] - 1
 num_el_cors_z = ni3d_cors.shape[1] - 1
 num_el_cors_q = ni3d_cors.shape[2]
+if not fullring:  num_el_cors_q-=1
 num_el_cors_tot = num_el_cors_q*num_el_cors_z*num_el_cors_r
 
 ########################################################    
@@ -58,7 +63,7 @@ for j in range(num_el_fine_z):
                         [i+1,j,k+1],
                         [i,j,k+1]]).astype(int)
             # Connect last q-nodes back to q=0
-            if k == num_el_fine_q -1:
+            if (k == num_el_fine_q -1) and fullring:
                 index[index[:,2] == k+1,2] = 0
             elcon_temp = [0,0,0,0,0,0,0,0]
             for u,v in enumerate(index):
@@ -85,7 +90,7 @@ for j in range(num_el_med_z):
                         [i+1,j,k+1],
                         [i,j,k+1]]).astype(int)
             elcon_temp = [0,0,0,0,0,0,0,0]
-            if k == num_el_med_q -1:
+            if (k == num_el_med_q -1) and fullring:
                 index[index[:,2] == k+1,2] = 0            
             for u,v in enumerate(index):
                 elcon_temp[u] = ni3d_med[v[0],v[1],v[2]]
@@ -110,7 +115,7 @@ for j in (n.arange(num_el_cors_z)):
                         [i+1,j,k],
                         [i+1,j,k+1],
                         [i,j,k+1]]).astype(int)
-            if k == num_el_cors_q -1:
+            if (k == num_el_cors_q -1) and fullring:
                 index[index[:,2] == k+1,2] = 0                        
             elcon_temp = [0,0,0,0,0,0,0,0]
             for u,v in enumerate(index):
@@ -159,7 +164,7 @@ for k in range(num_el_fine_q):
     elif k%3 == 2:
         for i in range(num_el_fine_r):
             # Exception for the last circumferential set to connect back to q=0
-            if k == num_el_fine_q - 1:
+            if (k == num_el_fine_q - 1) and fullring:
                 nodes = [ni3d_ref1_q[i,j_ref,k],
                          ni3d_ref1_q[i+1,j_ref,k],
                          ni3d_ref1_mid[i+1,j_mid,0],
@@ -186,7 +191,7 @@ for k in range(num_el_fine_q):
         for i in range(num_el_fine_r):            
             # Exception for the last the final z elements which need to 
             # connect back to the 0th znodes
-            if k == num_el_fine_q - 3:
+            if (k == num_el_fine_q - 3) and fullring:
                 nodes = [ni3d_ref1_mid[i,j_mid,k//3],
                          ni3d_ref1_mid[i+1,j_mid,k//3],
                          ni3d_ref1_mid[i+1,j_mid,0],
@@ -227,7 +232,7 @@ for k in range(num_el_med_q):
     for i in range(num_el_fine_r):
         # Exception for the last the final z elements which need to 
         # connect back to the 0th znodes
-        if k == num_el_med_q - 1:
+        if (k == num_el_med_q - 1) and fullring:
             k = -1 # We can do this since all elements have same z boundaries
         if i%3 == 0:
             nodes = [ni3d_med[i//3,j_med,k],
@@ -312,7 +317,7 @@ for k in range(num_el_med_q):
     elif k%3 == 2:
         for i in range(num_el_med_r):
             # Exception for the last circumferential set
-            if k == num_el_med_q - 1:
+            if (k == num_el_med_q - 1) and fullring:
                 nodes = [ni3d_ref2_q[i,j_ref,k],
                          ni3d_ref2_q[i+1,j_ref,k],
                          ni3d_cors[i+1,j_cors,0],
@@ -337,7 +342,7 @@ for k in range(num_el_med_q):
     # In a separate loop, connect ref2_q up to ref2_mid
     if k%3 == 0:
         for i in range(num_el_med_r):            
-            if k == num_el_med_q - 3:
+            if (k == num_el_med_q - 3) and fullring:
                 nodes = [ni3d_cors[i,j_cors,k//3],
                          ni3d_cors[i+1,j_cors,k//3],
                          ni3d_cors[i+1,j_cors,0],

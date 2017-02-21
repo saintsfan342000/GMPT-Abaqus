@@ -90,10 +90,12 @@ with open('./ConstructionFiles/abaqus_sets.txt','r') as setfid:
     sets = setfid.read()
     fid.write(sets)
     setfid.close()
+    if sets.rfind('NS_AXIALSYMM') != -1:
+        fullring = False
 
 # One more dip-rot tracking node, that nearest to X=1.9685/2, Y=0, Z = 0.64
 # I'm doing it here b/c it's easy to work with the entire nodelist
-po = n.array([1.9685/2, 0, 0.64/2])
+po = n.array([1.9685/2, 0, 2.12])
 loc = n.argmin( n.linalg.norm(nodelist[:,1:] - po, axis=1) )
 nodenum = nodelist[loc, 0]
 fid.write('*nset, nset=NS_DISPROT_NEW\n')
@@ -131,9 +133,6 @@ fid.write('*node, nset=NS_RPTOP\n' +
 fid.write('*transform, nset=NS_RPTOP, type=C\n' +
           '0, 0, 0, 0, 0, 1\n')
 nodenum+=1
-fid.write('*node, nset=NS_RPBOT\n' +
-          '{:.0f}, 0, 0, 0\n'.format(nodenum)
-          )
 # Riks monitoring point, must be defined in the assembly
 fid.write('** Riks displacement monitoring node must be defined in the assemlby\n' + 
           '*nset, nset=RIKSMON, instance=INSTANCE\n' + 
@@ -153,11 +152,6 @@ fid.write('*orientation, name=ORI_COUPLING, system=cylindrical, definition=coord
           )
 fid.write('*coupling, constraint name=CONSTRAINT_TOPSURFACE, ref nod=NS_RPTOP, surface=SURF_TOPSURFACE, orientation=ORI_COUPLING\n' +
           '*kinematic\n'
-          )
-fid.write('*coupling, constraint name=CONSTRAINT_BOTSURFACE, ref nod=NS_RPBOT, surface=SURF_BOTSURFACE, orientation=ORI_COUPLING\n' +
-          '*kinematic\n' +
-          '2, 3\n' +
-          '5, 6\n'
           )
 fid.write('*end assembly\n')
 
@@ -190,23 +184,35 @@ elif constit in ['ANIS', 'anis']:
 ### INITIAL BCs ###
 ###################
 fid.write('*boundary\n' +
-          'ASSEMBLY.NS_RPBOT, 1, 6 \n' + 
           'ASSEMBLY.NS_RPTOP, 1, 2 \n' +      # Top ref point can only translate up and rotate about axis
           'ASSEMBLY.NS_RPTOP, 4, 5 \n'
           )
+# Specify boundary condition if halfring
+if not fullring:
+    fid.write('**NS_AXIALSYMM:  Same as YSYMM\n')
+    fid.write('INSTANCE.NS_AXIALSYMM, 2, \n' + 
+              'INSTANCE.NS_AXIALSYMM, 4, \n' +
+              'INSTANCE.NS_AXIALSYMM, 6, \n'
+             )
+# Bottom symplane conditions...order matters
+fid.write('**NS_BOTTOMSURFACE:  Same as ZSYMM\n')
+fid.write('INSTANCE.NS_BOTTOMSURFACE, 3, 5 \n')
+
 
 ###################
 ###### STEP #######
 ###################
 
-fid.write('*step, name=STEP, nlgeom=yes, inc=500\n')
+fid.write('*step, name=STEP, nlgeom=yes, inc=200\n')
 # [1]Inital arc len, [2]total step, [3]minimum increm, [4]max increm (no max if blank), [5]Max LPF, [6]Node whose disp is monitored, [7]DOF, [8]Max Disp
 if not n.isnan(a_true):
     # Riks if tension and torsion
     fid.write('*static, riks\n' +
-            '0.001, 1.0, 1e-05, .001, .0022, ASSEMBLY.RIKSMON, {:.0f}, {:.6f}\n'.format(riks_DOF_num, riks_DOF_val)
+            '0.0005, 1.0, 1e-05, .0005, .0022, ASSEMBLY.RIKSMON, {:.0f}, {:.6f}\n'.format(riks_DOF_num, riks_DOF_val)
               )
     fid.write('**[1]Inital arc len, [2]total step, [3]minimum increm, [4]max increm (no max if blank), [5]Max LPF, [6]Node whose disp is monitored, [7]DOF, [8]Max Disp\n')
+    if not fullring:
+        force*=.5
     fid.write('*cload\n' +
               'ASSEMBLY.NS_RPTOP, 3, {:.5f}\n'.format(force)
               )
@@ -225,26 +231,19 @@ fid.write('** COORn must be called under history output, but COORD can be called
 fid.write('*node output, nset=INSTANCE.NS_DISPROT_LO\n' +   # disprot nodesets
           'U, UR\n'
           )
-fid.write('*node output, nset=INSTANCE.NS_DISPROT_NEW\n' +
+fid.write('*node output, nset=INSTANCE.NS_ALLNODES\n' +
           'U, UR\n'
           )
 fid.write('*node output, nset=ASSEMBLY.NS_RPTOP\n' +    # refpt node
           'U, UR, CF\n'
           )
-fid.write('*node output, nset=ASSEMBLY.NS_RPBOT\n' +
-          'RF, RM\n'
-          )          
-fid.write('*node output, nset=INSTANCE.NS_RADIALCONTRACTION\n' +    # radial contraction set
-          'U, UR\n'
+fid.write('*element output, elset=INSTANCE.ES_ALLELEMENTS, directions=YES\n' +    # sts, stn in element sets
+           'S, PE, LE, P'
           )
-for i in ['ES_Z', 'ES_THICKNESS', 'ES_THICKNESS_BACK']:
-    fid.write('*element output, elset=INSTANCE.{}, directions=YES\n'.format(i) +    # sts, stn in element sets
-              'S, PE, LE, P, COORD'
-              )
-    if constit in ['H8','h8','anis','ANIS']:
-        fid.write(', SDV1, SDV2\n')
-    else:
-        fid.write('\n')
+if constit in ['H8','h8','anis','ANIS']:
+    fid.write(', SDV1, SDV2\n')
+else:
+    fid.write('\n')
 
 fid.write('*end step\n')
 # end step
