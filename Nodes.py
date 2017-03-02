@@ -13,11 +13,11 @@ Works by laying out the nodes in "orthogonal cylindrical" coordinates,
 then at the end using x=rcos(q),y-rsin(q) to map to a cylinder in cartesian space
 
 In addition to a unique node number, each node gets an i,j,k index based on its position
-in r, q, z space (referred to herein as x,z,y, respectively).
+in r, q, z space
 
-x or th, [:,0] = thru thickness, or radial coordinate
-y, [:,1] = Axial coord
-z or q, [:,2] = Angle coordinate theta
+r, [:,0] = thru thickness, or radial coordinate
+z, [:,1] = Axial coord
+q, [:,2] = Angle coordinate theta
 '''
 try:
     worthless, Lg, Ltop, ODtop, ID, tg, R, num_el_fine_r, dt = argv
@@ -40,9 +40,10 @@ except:
     dt = 0
 
 angle = 1*pi    # 2pi for full tube
+angle_fine = pi/8 # The fine mesh will run from 0 to angle_fine
 coord_end_chamf = sqrt( R**2 - (ODtop-(ID+tg+R))**2 ) + Lg  # y-coord where chamfer reaches ODtop
 ztop = coord_end_chamf + Ltop
-start_ref1 = 2*Lg/3  # y-coord of last node in fine-mesh elements, where the refine starts
+start_ref1 = Lg/2  # y-coord of last node in fine-mesh elements, where the refine starts
 start_ref2 = coord_end_chamf  # y-coord of last node in med-mesh elements, where the refine starts
 
 def CalcOD(Y):
@@ -115,6 +116,15 @@ for v in ni_fine:
 
 # Medium nodes    
 zspace = linspace(start_med_z, start_ref2, num_node_med_z)
+# Refine the z-space on the chamfer so that it's smoother
+rng_lo =  zspace < Lg
+rng_hi = zspace > coord_end_chamf
+rng_med = ~(rng_lo | rng_hi)  #This is where we refine
+ref_fact = 3
+zspace = hstack(( zspace[rng_lo],
+                  linspace(Lg, coord_end_chamf, ref_fact*rng_med.sum()-(ref_fact-1)),
+                  zspace[rng_hi]
+               ))
 zindspace = n.arange(len(zspace))
 qspace = qspace[::3] # Keep every third!
 qindspace = n.arange(len(qspace))

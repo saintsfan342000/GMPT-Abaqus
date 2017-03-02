@@ -52,7 +52,7 @@ for i,no in enumerate(nodenums):
 # A single node to calculate nominal disp and rot
 # Right at the cusp of the radius
 # index z = 0, index theta = 0, index_r = max
-fid.write('*nset, nset=NS_DISPROT_LO\n')
+fid.write('*nset, nset=NS_DISPROT_HI\n')
 rng = ( (ni_cors[:,1] == 0 ) & (ni_cors[:,2] == 0 ) &
         (ni_cors[:,0] == ni_cors[:,0].max()) )
 nodenums = compress(rng, ni_cors[:,3])
@@ -60,17 +60,6 @@ if len(nodenums) != 1:
     raise ValueError('Seeking a single node for NS_DISPROT_LO, but len(nodenums)!=1')
 else:
     fid.write('{}\n'.format(nodenums[0]))
-
-# nset Disp-Rot node 2
-# A second node, one el higher, if I want to interpolate Lg
-fid.write('*nset, nset=NS_DISPROT_HI\n')
-rng = ( (ni_cors[:,1] == 1 ) & (ni_cors[:,2] == 0 ) &
-        (ni_cors[:,0] == ni_cors[:,0].max()) )
-nodenums = compress(rng, ni_cors[:,3])
-if len(nodenums) != 1:
-    raise ValueError('Seeking a single node for NS_DISROT_HI, but len(nodenums)!=1')
-else:
-    fid.write('{}\n'.format(nodenums[0]))    
 
 #nset radial contraction
 # A line of nodes running up along the OD

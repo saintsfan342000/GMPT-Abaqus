@@ -98,7 +98,7 @@ with open('./ConstructionFiles/abaqus_sets.txt','r') as setfid:
 po = n.array([1.9685/2, 0, 2.12])
 loc = n.argmin( n.linalg.norm(nodelist[:,1:] - po, axis=1) )
 nodenum = nodelist[loc, 0]
-fid.write('*nset, nset=NS_DISPROT_NEW\n')
+fid.write('*nset, nset=NS_DISPROT_LO\n')
 fid.write('{:.0f}\n'.format(nodenum))
 
 # Orientation, transformation, section
@@ -224,11 +224,13 @@ else:
               '0.005, 1., 1e-05, .005\n'
               )
               
-
 # field output
 fid.write('*output, field, frequency=1\n')
 fid.write('** COORn must be called under history output, but COORD can be called in field\n')
 fid.write('*node output, nset=INSTANCE.NS_DISPROT_LO\n' +   # disprot nodesets
+          'U, UR\n'
+          )
+fid.write('*node output, nset=INSTANCE.NS_DISPROT_HI\n' +   # disprot nodesets
           'U, UR\n'
           )
 fid.write('*node output, nset=INSTANCE.NS_ALLNODES\n' +

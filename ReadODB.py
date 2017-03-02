@@ -20,7 +20,7 @@ try:
     job = job.split('.')[0] # In case I give .odb with the name
     R = float(R)
     t = float(t)
-except IndexError:
+except:
     job = 'job'
     t = 0.05
     R = 1.6285/2 + t/2
@@ -32,7 +32,6 @@ nset_rp_top = 'NS_RPTOP'
 nset_rp_bot = 'NS_RPBOT'
 nset_dr_lo = 'NS_DISPROT_LO'
 nset_dr_hi = 'NS_DISPROT_HI'
-nset_dr_new = 'NS_DISPROT_NEW'
 elset_th = 'ES_THICKNESS'
 
 h_odb = O.openOdb(job + '.odb',readOnly=True)
@@ -44,7 +43,6 @@ num_incs = len(h_All_Frames)
 h_nset_rp_top = h_odb.rootAssembly.nodeSets[nset_rp_top]
 h_nset_dr_lo = h_inst.nodeSets[nset_dr_lo]
 h_nset_dr_hi = h_inst.nodeSets[nset_dr_hi]
-h_nset_dr_new = h_inst.nodeSets[nset_dr_new]
 h_elset_th = h_inst.elementSets[elset_th]
 
 F = np.empty( (num_incs) )
@@ -68,6 +66,9 @@ h_odb.close()
 # Convert disp to d/Lg
 d_lo, d_hi = d_lo/Lg_lo, d_hi/Lg_hi
 
+# Since half model, multiple F by 2
+F*=2
+
 def headerline(fname, hl):
     fid = open(fname, 'r')
     data = fid.read()
@@ -81,8 +82,9 @@ def headerline(fname, hl):
     fid.close()
 
 # Save
-np.savetxt('FPD.dat',X = np.vstack((F, P, F/(2*pi*R*t), P*R/t, d_lo, d_hi)).T, fmt='%.15f', delimiter=', ')
-headerline('FPD.dat','#[0] Force (kip), [1]Pressure (ksi), [2]Nom AxSts, [3]Nom Shear Sts, [4]d/Lg lo, [5]d/Lg hi\n')
+fname = '%s_results.dat'%(job)
+np.savetxt(fname, X = np.vstack((F, P, F/(2*pi*R*t), P*R/t, d_lo, d_hi)).T, fmt='%.15f', delimiter=', ')
+headerline(fname, '#[0] Force (kip), [1]Pressure (ksi), [2]Nom AxSts, [3]Nom Shear Sts, [4]d/Lg lo, [5]d/Lg hi\n')
 #
 #
 #
