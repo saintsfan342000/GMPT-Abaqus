@@ -168,8 +168,9 @@ fid.write('*elset, elset=ES_THICKNESS_BACK\n')
 rng = ((ni_fine[:,1] == 1) & 
         (n.abs(nc_fine[:,2]-pi) == n.abs(nc_fine[:,2]-pi).min()) )
 nodenums = compress(rng, ni_fine[:,3])
-nodenums2 = nodenums + 1
-rng = (in1d(E[:,3],nodenums)) & (in1d(E[:,2],nodenums2))
+nodenums2 = nodenums - 1 # Minus to accomadate halfe model!
+# Order of 2 and 3 is switched b/c nodenums2 is minus 1
+rng = (in1d(E[:,2],nodenums)) & (in1d(E[:,3],nodenums2))
 elnums = E[rng, 0]
 for i,el in enumerate(elnums):
     if ((i+1)%16 == 0) or (i == len(elnums)-1):
@@ -177,6 +178,22 @@ for i,el in enumerate(elnums):
     else:
         fid.write('{:.0f}, '.format(el))
 
+# Elset_thickness_side
+fid.write('*elset, elset=ES_THICKNESS_SIDE\n')
+# A line of elements on the sym-plane running thru-thickness
+# Placed along  wall-thickness area (y = ymax, x = 0)
+# z-index = 1, and theta-coord closest to pi/2
+rng = ((ni_fine[:,1] == 1) & 
+        (n.abs(nc_fine[:,2]-pi/2) == n.abs(nc_fine[:,2]-pi/2).min()) )
+nodenums = compress(rng, ni_fine[:,3])
+nodenums2 = nodenums + 1 
+rng = (in1d(E[:,3],nodenums)) & (in1d(E[:,2],nodenums2))
+elnums = E[rng, 0]
+for i,el in enumerate(elnums):
+    if ((i+1)%16 == 0) or (i == len(elnums)-1):
+        fid.write('{:.0f}\n'.format(el))
+    else:
+        fid.write('{:.0f}, '.format(el))
 # Elset_wholeid
 fid.write('*elset, elset=ES_WHOLEID\n')
 # Every element with a face on the ID

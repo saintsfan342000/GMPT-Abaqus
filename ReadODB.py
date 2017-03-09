@@ -21,9 +21,9 @@ try:
     R = float(R)
     t = float(t)
 except:
-    job = 'job'
-    t = 0.05
-    R = 1.6285/2 + t/2
+    job = 'GMPT1'
+    t = 0.0500
+    R = 0.8391
 
 if not os.path.isfile(job + '.odb'):
     raise ValueError('The specified job name "%s" does not exist.'%(job))
@@ -44,11 +44,14 @@ h_nset_rp_top = h_odb.rootAssembly.nodeSets[nset_rp_top]
 h_nset_dr_lo = h_inst.nodeSets[nset_dr_lo]
 h_nset_dr_hi = h_inst.nodeSets[nset_dr_hi]
 h_elset_th = h_inst.elementSets[elset_th]
+numel_th = len(h_elset_th.elements)
 
 F = np.empty( (num_incs) )
 P = np.empty( (num_incs) )
 d_lo = np.empty( (num_incs) )
 d_hi = np.empty( (num_incs) )
+sts = np.empty((num_incs,3))
+stn = np.empty((num_incs,3))
 
 # Grab undef coords of dr_lo and hi
 Lg_lo = h_nset_dr_lo.nodes[0].coordinates[2]
@@ -60,6 +63,12 @@ for i in range(num_incs):
     P[i] = h_All_Frames[i].fieldOutputs['P'].values[0].data
     d_lo[i] = h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_dr_lo).values[0].data[2]
     d_hi[i] = h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_dr_hi).values[0].data[2]
+    tempsts, tempstn = 0, 0
+    for j in range(numel_th):
+         tempsts += h_All_Frames[i].fieldOutputs['S'].getSubset(region=h_elset_th).values[j].data[:3]
+         tempstn += h_All_Frames[i].fieldOutputs['LE'].getSubset(region=h_elset_th).values[j].data[:3]
+    sts[i] = tempsts/3
+    stn[i] = tempstn/3
 
 h_odb.close()
 
@@ -83,8 +92,9 @@ def headerline(fname, hl):
 
 # Save
 fname = '%s_results.dat'%(job)
-np.savetxt(fname, X = np.vstack((F, P, F/(2*pi*R*t), P*R/t, d_lo, d_hi)).T, fmt='%.15f', delimiter=', ')
-headerline(fname, '#[0] Force (kip), [1]Pressure (ksi), [2]Nom AxSts, [3]Nom Shear Sts, [4]d/Lg lo, [5]d/Lg hi\n')
+np.savetxt(fname, X = np.vstack((F, P, F/(2*pi*R*t), P*R/t, d_lo, d_hi,sts.T,stn.T)).T, fmt='%.15f', delimiter=', ')
+headerline(fname, '#[0] Force (kip), [1]Pressure (ksi), [2]Nom AxSts, [3]Nom Shear Sts, [4]d/Lg lo, [5]d/Lg hi, [6,7,8]S11,22,33, [9,10,11]LE11,22,33')
+
 #
 #
 #

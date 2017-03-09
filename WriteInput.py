@@ -165,7 +165,7 @@ fid.write('***************  MATERIAL **************\n')
 fid.write('****************************************\n')
 
 if constit in ['vm', 'VM']:
-    with open('./ConstructionFiles/abaqus_material_VM_TT20.txt','r') as matfid:
+    with open('./ConstructionFiles/abaqus_material_VM.txt','r') as matfid:
         mat = matfid.read()
         fid.write(mat)
         matfid.close()
