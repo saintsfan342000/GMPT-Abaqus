@@ -1,6 +1,7 @@
 import numpy as n
 from numpy import (linspace, asarray, in1d, empty,
                     hstack , vstack, pi, compress)
+from scipy.spatial import Delaunay as trimesh
 from sys import argv
 from pandas import read_excel
 import time
@@ -27,7 +28,7 @@ if not( constit in ['vm', 'VM', 'H8', 'h8', 'anis', 'ANIS']):
 # Open up TT-Summary to get the limit loads and some other info
 key = read_excel('PT-Summary.xlsx',sheetname='Summary',header=None,index_col=None,skiprows=1).values
 key = key[ key[:,0] == expt ]
-a_true, R, t, force, press, dmax = n.mean(key[:,[2,3,4,9,10,-2]], axis=0) # Since this has shape (1,...)
+alpha, a_true, R, t, force, press, dmax = n.mean(key[:,[1,2,3,4,9,10,-2]], axis=0) # Since this has shape (1,...)
 press*=(t/R)*500 # hoop stres to pressure
 # The *500 is b/c abaqus behaves odd when the cloads are O(1) 
 # The behavior is normal when the cloads are O(1000)
@@ -100,7 +101,26 @@ loc = n.argmin( n.linalg.norm(nodelist[:,1:] - po, axis=1) )
 nodenum = nodelist[loc, 0]
 fid.write('*nset, nset=NS_DISPROT_LO\n')
 fid.write('{:.0f}\n'.format(nodenum))
-
+# Reference points
+nodenum, zcoord = nodelist[:,0].max()+1, nodelist[:,3].max()
+fid.write('*node, nset=NS_RPTOP\n' +
+          '{:.0f}, 0, 0, {:.12f}\n'.format(nodenum, zcoord)
+          )
+fid.write('*node, nset=RP_CAV\n' + 
+          '{:.0f}, 0, 0, 0\n'.format(nodenum+1)
+          )
+# Now generate the surface elements that connect from top ID nodes to top RP
+cnodes = n.load('./ConstructionFiles/ni_cors.npy')
+rng = (cnodes[:,0] == 0) & (cnodes[:,1] == cnodes[:,1].max())
+nodes = cnodes[rng,3]
+nodes = nodelist[nodes-1]
+nodes = vstack(( [nodenum, 0, 0, zcoord],nodes ))
+tri = trimesh(nodes[:,[1,2]])
+fid.write('*element, type=SFM3D3, elset=ES_SURFELS\n')
+e1 = elemlist[:,0].max()
+for k,i in enumerate(tri.simplices):
+    fid.write('{:d}, {:.0f}, {:.0f}, {:.0f}\n'.format(e1+k+1,
+          nodes[i[0],0], nodes[i[2],0], nodes[i[1],0]))
 # Orientation, transformation, section
 fid.write('*orientation, name=ANISOTROPY, system=cylindrical, definition=coordinates\n' +
           '0, 0, 0, 0, 0, 1\n'
@@ -112,6 +132,7 @@ fid.write('*Hourglass Stiffness\n' +
 fid.write('*transform, nset=NS_ALLNODES, type=C\n' +
           '0, 0, 0, 0, 0, 1\n'
           )
+fid.write('*surface section, elset=ES_SURFELS\n')
 fid.write('*end part\n')
 # end part
 
@@ -124,17 +145,13 @@ fid.write('****************************************\n')
 fid.write('*assembly, name=ASSEMBLY\n')
 fid.write('*instance, name=INSTANCE, part=PART\n')
 fid.write('*end instance\n')
-# Reference points
-nodenum, zcoord = nodelist[:,0].max()+1, nodelist[:,3].max()
-fid.write('*node, nset=NS_RPTOP\n' +
-          '{:.0f}, 0, 0, {:.12f}\n'.format(nodenum, zcoord)
-          )
+
 # transform for RPs
-fid.write('*transform, nset=NS_RPTOP, type=C\n' +
+fid.write('*transform, nset=INSTANCE.NS_RPTOP, type=C\n' +
           '0, 0, 0, 0, 0, 1\n')
 nodenum+=1
 # Riks monitoring point, must be defined in the assembly
-fid.write('** Riks displacement monitoring node must be defined in the assemlby\n' + 
+fid.write('** Riks displacement monitoring node must be defined in the assembly\n' + 
           '*nset, nset=RIKSMON, instance=INSTANCE\n' + 
           'NS_DISPROT_LO\n')
 # Surfaces
@@ -150,8 +167,13 @@ fid.write('*surface, type=element, name=SURF_IDSURFACE\n' +
 fid.write('*orientation, name=ORI_COUPLING, system=cylindrical, definition=coordinates\n' +
           '0, 0, 0, 0, 0, 1\n'
           )
-fid.write('*coupling, constraint name=CONSTRAINT_TOPSURFACE, ref nod=NS_RPTOP, surface=SURF_TOPSURFACE, orientation=ORI_COUPLING\n' +
+fid.write('*coupling, constraint name=CONSTRAINT_TOPSURFACE, ref nod=INSTANCE.NS_RPTOP, surface=SURF_TOPSURFACE, orientation=ORI_COUPLING\n' +
           '*kinematic\n'
+          )
+fid.write('** Surface definition for the fluid cavity\n' + 
+          '*surface, type=element, name=SURF_CAVITY\n' + 
+          'INSTANCE.ES_SURFELS, SPOS\n' + 
+          'INSTANCE.ES_WHOLEID, S6\n'
           )
 fid.write('*end assembly\n')
 
@@ -181,47 +203,73 @@ elif constit in ['ANIS', 'anis']:
         matfid.close()
 
 ###################
+### Fluid and cavity ###
+###################
+fid.write('****************************************\n')
+fid.write('*************** FLUID CAV  *************\n')
+fid.write('****************************************\n')
+fid.write('*fluid behavior, name=FLUID\n')
+fid.write('*fluid density\n' + 
+          '0.03158\n'
+         )
+# You need a blank line after fluid cav...two newline characters!
+fid.write('*fluid cavity, name=FLUIDCAVITY, behavior=FLUID, refnode=INSTANCE.RP_CAV, surface=SURF_CAVITY\n\n')
+
+
+###################
 ### INITIAL BCs ###
 ###################
-fid.write('*boundary\n' +
-          'ASSEMBLY.NS_RPTOP, 1, 2 \n' +      # Top ref point can only translate up and rotate about axis
-          'ASSEMBLY.NS_RPTOP, 4, 5 \n'
+fid.write('*boundary\n')
+fid.write('** Top Ref Pt:  Only U3, UR3 permitted\n')
+fid.write('INSTANCE.NS_RPTOP, 1, 2\n' +
+          'INSTANCE.NS_RPTOP, 4, 5\n'
           )
 # Specify boundary condition if halfring
 if not fullring:
-    fid.write('**NS_AXIALSYMM:  Same as YSYMM\n')
+    fid.write('** AxialSymmetry Nodes:  Same as YSYMM\n')
     fid.write('INSTANCE.NS_AXIALSYMM, 2, \n' + 
               'INSTANCE.NS_AXIALSYMM, 4, \n' +
               'INSTANCE.NS_AXIALSYMM, 6, \n'
              )
 # Bottom symplane conditions...order matters
-fid.write('**NS_BOTTOMSURFACE:  Same as ZSYMM\n')
+fid.write('** Bottom surface nodes:  Same as ZSYMM\n')
 fid.write('INSTANCE.NS_BOTTOMSURFACE, 3, 5 \n')
-
-
+# Cavity ref node
+fid.write('** Cavity reference node fully constrained\n')
+fid.write('INSTANCE.RP_CAV, 1, 6\n')
 ###################
 ###### STEP #######
 ###################
-
+fid.write('****************************************\n')
+fid.write('*************** STEP *******************\n')
+fid.write('****************************************\n')
 fid.write('*step, name=STEP, nlgeom=yes, inc=200\n')
 # [1]Inital arc len, [2]total step, [3]minimum increm, [4]max increm (no max if blank), [5]Max LPF, [6]Node whose disp is monitored, [7]DOF, [8]Max Disp
 if not n.isnan(a_true):
-    # Riks if tension and torsion
+    # Riks if pressurizing
     fid.write('*static, riks\n' +
             '0.0005, 1.0, 1e-05, .0005, .0022, ASSEMBLY.RIKSMON, {:.0f}, {:.6f}\n'.format(riks_DOF_num, riks_DOF_val)
               )
-    fid.write('**[1]Inital arc len, [2]total step, [3]minimum increm, [4]max increm (no max if blank), [5]Max LPF, [6]Node whose disp is monitored, [7]DOF, [8]Max Disp\n')
-    if not fullring:
-        force*=.5
-    fid.write('*cload\n' +
-              'ASSEMBLY.NS_RPTOP, 3, {:.5f}\n'.format(force)
+    fid.write('**[1]Inital arc len, [2]total step, [3]minimum increm, [4]max increm (no max if blank),' +
+              ' [5]Max LPF, [6]Node whose disp is monitored, [7]DOF, [8]Max Disp\n')
+    if n.isclose(alpha, 0.5):
+        # Alpha 0.5:  No force applied...don't write cload
+        pass
+    else:
+        if not fullring:
+            force*=.5
+        fid.write('*cload\n' +
+                  'INSTANCE.NS_RPTOP, 3, {:.5f}\n'.format(force) )
+    fid.write('*boundary\n' + 
+              'INSTANCE.RP_CAV, 8, 8, {:.5f}\n'.format(press)
               )
-    fid.write('*dsload\n' +
-              'SURF_IDSURFACE, P, {:.5f}\n'.format(press)
-             )
 else:
+    # Apply U3 if just tension
     fid.write('*static\n' +
               '0.005, 1., 1e-05, .005\n'
+              )
+    fid.write('*boundary\n' + 
+              'INSTNCE.RP_TOP, 3, 3, 0.3\n'
               )
               
 # field output
@@ -236,7 +284,7 @@ fid.write('*node output, nset=INSTANCE.NS_DISPROT_HI\n' +   # disprot nodesets
 fid.write('*node output, nset=INSTANCE.NS_ALLNODES\n' +
           'U, UR\n'
           )
-fid.write('*node output, nset=ASSEMBLY.NS_RPTOP\n' +    # refpt node
+fid.write('*node output, nset=INSTANCE.NS_RPTOP\n' +    # refpt node
           'U, UR, CF\n'
           )
 fid.write('*element output, elset=INSTANCE.ES_ALLELEMENTS, directions=YES\n' +    # sts, stn in element sets
@@ -246,16 +294,18 @@ if constit in ['H8','h8','anis','ANIS']:
     fid.write(', SDV1, SDV2\n')
 else:
     fid.write('\n')
-
+fid.write('*output, history, frequency=1\n')
+fid.write('*node output, nset=INSTANCE.RP_CAV\n' + 
+          'CVOL, PCAV\n'
+         )
 fid.write('*end step\n')
 # end step
+fid.close()
 
 '''
 Abaqus Users Guide: Sxn 2.1.5
 Output database output of field vector-valued quantities at transformed nodes is in the global system. The local transformations are also written to the output database. You can apply these transformations to the results in the Visualization module of Abaqus/CAE to view the vector components in the transformed systems.
 '''
-fid.close()
-
 
 '''
 # History output (coor)

@@ -7,7 +7,7 @@
 ** tg = 0.0500
 ** ID = 1.6282
 ** constit = "vm"
-** Generated on 3/9/2017 at 10:43
+** Generated on 3/10/2017 at 11:45
 *Heading
 Z is Tube Axis
 Min Wall Thickness is (x>0,y=0)
@@ -72640,6 +72640,28 @@ Min Wall Thickness is (x>0,y=0)
 30140 ,30141
 *nset, nset=NS_DISPROT_LO
 40741
+*node, nset=NS_RPTOP
+41689, 0, 0, 2.624905874562
+*node, nset=RP_CAV
+41690, 0, 0, 0
+*element, type=SFM3D3, elset=ES_SURFELS
+30142, 41689, 40882, 40881
+30143, 40877, 41689, 40878
+30144, 40878, 41689, 40879
+30145, 40874, 40873, 41689
+30146, 40874, 41689, 40875
+30147, 40876, 41689, 40877
+30148, 40875, 41689, 40876
+30149, 40866, 40865, 41689
+30150, 40866, 41689, 40867
+30151, 40868, 41689, 40869
+30152, 40867, 41689, 40868
+30153, 41689, 40873, 40872
+30154, 40871, 41689, 40872
+30155, 40869, 41689, 40870
+30156, 40870, 41689, 40871
+30157, 40879, 41689, 40880
+30158, 40880, 41689, 40881
 *orientation, name=ANISOTROPY, system=cylindrical, definition=coordinates
 0, 0, 0, 0, 0, 1
 *solid section, elset=ES_ALLELEMENTS, material=MATERIAL, orientation=ANISOTROPY
@@ -72647,6 +72669,7 @@ Min Wall Thickness is (x>0,y=0)
 40.0, , , 
 *transform, nset=NS_ALLNODES, type=C
 0, 0, 0, 0, 0, 1
+*surface section, elset=ES_SURFELS
 *end part
 ****************************************
 *************** Assembly ***************
@@ -72654,11 +72677,9 @@ Min Wall Thickness is (x>0,y=0)
 *assembly, name=ASSEMBLY
 *instance, name=INSTANCE, part=PART
 *end instance
-*node, nset=NS_RPTOP
-41689, 0, 0, 2.624905874562
-*transform, nset=NS_RPTOP, type=C
+*transform, nset=INSTANCE.NS_RPTOP, type=C
 0, 0, 0, 0, 0, 1
-** Riks displacement monitoring node must be defined in the assemlby
+** Riks displacement monitoring node must be defined in the assembly
 *nset, nset=RIKSMON, instance=INSTANCE
 NS_DISPROT_LO
 *surface, type=node, name=SURF_TOPSURFACE
@@ -72669,8 +72690,12 @@ INSTANCE.NS_BOTTOMSURFACE
 INSTANCE.ES_WHOLEID, S6
 *orientation, name=ORI_COUPLING, system=cylindrical, definition=coordinates
 0, 0, 0, 0, 0, 1
-*coupling, constraint name=CONSTRAINT_TOPSURFACE, ref nod=NS_RPTOP, surface=SURF_TOPSURFACE, orientation=ORI_COUPLING
+*coupling, constraint name=CONSTRAINT_TOPSURFACE, ref nod=INSTANCE.NS_RPTOP, surface=SURF_TOPSURFACE, orientation=ORI_COUPLING
 *kinematic
+** Surface definition for the fluid cavity
+*surface, type=element, name=SURF_CAVITY
+INSTANCE.ES_SURFELS, SPOS
+INSTANCE.ES_WHOLEID, S6
 *end assembly
 ****************************************
 ***************  MATERIAL **************
@@ -73084,23 +73109,35 @@ INSTANCE.ES_WHOLEID, S6
 55.58962058, 1.19256858
 55.58962075, 1.19656858
 55.58962092, 1.20056858
+****************************************
+*************** FLUID CAV  *************
+****************************************
+*fluid behavior, name=FLUID
+*fluid density
+0.03158
+*fluid cavity, name=FLUIDCAVITY, behavior=FLUID, refnode=INSTANCE.RP_CAV, surface=SURF_CAVITY
+
 *boundary
-ASSEMBLY.NS_RPTOP, 1, 2 
-ASSEMBLY.NS_RPTOP, 4, 5 
-**NS_AXIALSYMM:  Same as YSYMM
+** Top Ref Pt:  Only U3, UR3 permitted
+INSTANCE.NS_RPTOP, 1, 2
+INSTANCE.NS_RPTOP, 4, 5
+** AxialSymmetry Nodes:  Same as YSYMM
 INSTANCE.NS_AXIALSYMM, 2, 
 INSTANCE.NS_AXIALSYMM, 4, 
 INSTANCE.NS_AXIALSYMM, 6, 
-**NS_BOTTOMSURFACE:  Same as ZSYMM
+** Bottom surface nodes:  Same as ZSYMM
 INSTANCE.NS_BOTTOMSURFACE, 3, 5 
+** Cavity reference node fully constrained
+INSTANCE.RP_CAV, 1, 6
+****************************************
+*************** STEP *******************
+****************************************
 *step, name=STEP, nlgeom=yes, inc=200
 *static, riks
 0.0005, 1.0, 1e-05, .0005, .0022, ASSEMBLY.RIKSMON, 3, 0.240000
 **[1]Inital arc len, [2]total step, [3]minimum increm, [4]max increm (no max if blank), [5]Max LPF, [6]Node whose disp is monitored, [7]DOF, [8]Max Disp
-*cload
-ASSEMBLY.NS_RPTOP, 3, 1709.12547
-*dsload
-SURF_IDSURFACE, P, 1545.34918
+*boundary
+INSTANCE.RP_CAV, 8, 8, 1545.34918
 *output, field, frequency=1
 ** COORn must be called under history output, but COORD can be called in field
 *node output, nset=INSTANCE.NS_DISPROT_LO
@@ -73109,8 +73146,11 @@ U, UR
 U, UR
 *node output, nset=INSTANCE.NS_ALLNODES
 U, UR
-*node output, nset=ASSEMBLY.NS_RPTOP
+*node output, nset=INSTANCE.NS_RPTOP
 U, UR, CF
 *element output, elset=INSTANCE.ES_ALLELEMENTS, directions=YES
 S, PE, LE, P
+*output, history, frequency=1
+*node output, nset=INSTANCE.RP_CAV
+CVOL, PCAV
 *end step
