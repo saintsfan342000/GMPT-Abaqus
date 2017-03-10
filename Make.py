@@ -27,10 +27,10 @@ else:
     
     inpname = inpname.split('.')[0] # In case I give an extension.
 
-    Lg = '2.0'
+    Lg = '4.0'
     Ltop = '0.5'  # Length of thick section above radius/chamf
     ODtop = '1.9685'    # Radius of thick section    
-    R = '0.125'    # Radius of chamf
+    R = '0.5'    # Radius of chamf
     
     ### Nodes
     println()
@@ -48,13 +48,13 @@ else:
     ### Sets
     println()
     print('Generating node and element sets.')
-    os.system('python Sets.py')
+    os.system('python Sets.py {}'.format(Lg))
     print('Done.')
 
     ### Eccentricity
     println()
     print('Generating Eccentricity.')
-    os.system('python Eccen.py {}'.format(eccen))
+    os.system('python Eccen.py {} {} {}'.format(eccen, Lg, R))
     print('Done.')
 
     ### Write Input

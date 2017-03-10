@@ -23,6 +23,8 @@ Therefore, (x = +OD/2, y = 0) is the thinnest wall, and
 
 try:
     ecc = float(argv[1])
+    Lg = float(argv[2])
+    R = float(argv[3])
 except IndexError:
     ecc = 0
 
@@ -39,8 +41,6 @@ ODtop = n.max(nc_cors[:,0])
 # Outstanding question:  Do we want the ecc shift to base on a the perfect
 # thickness, or the imperfection-reduced thickness?
 tg = n.max(nc_fine[:,0]) - ID 
-Lg = .4/2
-R = .125
 coord_end_chamf = n.sqrt( R**2 - (ODtop-(ID+tg+R))**2 ) + Lg  # y-coord where chamfer reaches ODtop
 D = ecc*tg
 
