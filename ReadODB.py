@@ -15,16 +15,10 @@ import os
 from sys import argv
 pi = np.pi
 
-try:
-    job, R, t = argv[1:]
-    job = job.split('.')[0] # In case I give .odb with the name
-    R = float(R)
-    t = float(t)
-except:
-    job = 'job'
-    t = 0.0500
-    R = 0.8391
-    half = True
+job, half = argv[1:]
+
+t = 0.0500
+R = 0.8391
 
 if not os.path.isfile(job + '.odb'):
     raise ValueError('The specified job name "%s" does not exist.'%(job))
@@ -56,20 +50,24 @@ h_elset_th_s = h_inst.elementSets[elset_th_side]
 # Special treatment for the cavity pressure and volume, which is history data
 h_histrgn = h_step.historyRegions[h_hist]
 numel_th = len(h_elset_th.elements)
-numnode_prof = len(h_nset_urprof.nodes)
 
 F = np.empty( (num_incs) )
 P = np.empty( (num_incs) )
 V = np.empty( (num_incs) )
 d_lo = np.empty( (num_incs) )
 d_hi = np.empty( (num_incs) )
-ur_prof = np.empty((num_incs+2, numnode_prof))
+
 sts = np.empty((num_incs,3))
 stn = np.empty((num_incs,3))
 
 # Grab undef coords of dr_lo and hi
 Lg_lo = h_nset_dr_lo.nodes[0].coordinates[2]
 Lg_hi = h_nset_dr_hi.nodes[0].coordinates[2]
+
+# Some special handling for ur_prof since the jth value of U subset does not correspond to jth node in the set :(
+numnode_prof = len(h_nset_urprof.nodes)
+urnodes = np.array([i.label for i in h_nset_urprof.nodes])
+ur_prof = np.empty((num_incs+2, numnode_prof))
 
 for i in range(num_incs):
     F[i] = h_All_Frames[i].fieldOutputs['CF'].getSubset(region=h_nset_rp_top).values[0].data[2]
@@ -85,12 +83,23 @@ for i in range(num_incs):
     sts[i] = tempsts/numel_th
     stn[i] = tempstn/numel_th
     
-    uvals = h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_urprof).values
+    # For some reason, the jth node in the set didn't correspond to the .values[j].nodeLabel
+    # So I have to do this ridiculous thing where I create a subset for each node in the set
+    uvals = h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_urprof)
     for j in range(numnode_prof):
+        h_node = h_nset_urprof.nodes[j]
         if i == 0:
-            ur_prof[0,j] = h_nset_urprof.nodes[j].coordinates[2]
-            ur_prof[1,j] = h_nset_urprof.nodes[j].coordinates[0]
-        ur_prof[i+2,j] = uvals[j].data[0]
+            ur_prof[0,j] = h_node.coordinates[2]
+            ur_prof[1,j] = h_node.coordinates[0]
+        nodeUvals = uvals.getSubset(region=h_node).values[0]
+        ur_prof[i+2,j] = nodeUvals.data[0]
+        if nodeUvals.nodeLabel != h_node.label:
+            print "Warning...you're getting node mistmatch in the profile."
+            
+    
+    #for j in range(numnode_prof):
+    #    print h_nset_urprof.nodes[j].label, h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_urprof).values[j].nodeLabel
+
     
 for k,i in enumerate(h_histrgn.historyOutputs['PCAV'].data):
     P[k] = i[1]
@@ -129,6 +138,13 @@ hl = '#[0] Force (kip), [1]Pressure (ksi), [2]NomAxSts, [3]NomHoopSts,'
 hl += ' [4]d/Lg lo, [5]d/Lg hi, [6,7,8]S11,22,33, [9,10,11]LE11,22,33, [12]Vol'
 headerline(fname, hl)
 
+ur_prof = ur_prof[:,ur_prof[0].argsort()]
+fname = 'UR.dat'
+np.savetxt(fname, X=ur_prof, fmt='%.8f', delimiter=',')
+hl = '#1st line: Undef Z-coord of nodes\n'
+hl += '#2nd line: Undef r-coord of nodes\n'
+hl += '#3+nth line: nth incremend Ur of node in column'
+headerline(fname,hl)
 #
 #
 #
