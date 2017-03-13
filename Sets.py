@@ -7,7 +7,7 @@ from sys import argv
 Generates the node sets and element sets.
 '''
 
-Lg = 4/2
+Lg = float(argv[1])
 
 nodelist = ['nc_cors', 'nc_fine', 'nc_med',
             'nc_ref1_mid', 'nc_ref1_r', 'nc_ref1_q',

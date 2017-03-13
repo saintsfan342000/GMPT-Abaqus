@@ -15,15 +15,10 @@ import os
 from sys import argv
 pi = np.pi
 
-try:
-    job, R, t = argv[1:]
-    job = job.split('.')[0] # In case I give .odb with the name
-    R = float(R)
-    t = float(t)
-except:
-    job = 'GMPT1'
-    t = 0.0500
-    R = 0.8391
+job, half = argv[1:]
+
+t = 0.0500
+R = 0.8391
 
 if not os.path.isfile(job + '.odb'):
     raise ValueError('The specified job name "%s" does not exist.'%(job))
@@ -32,7 +27,11 @@ nset_rp_top = 'NS_RPTOP'
 nset_rp_bot = 'NS_RPBOT'
 nset_dr_lo = 'NS_DISPROT_LO'
 nset_dr_hi = 'NS_DISPROT_HI'
-elset_th = 'ES_THICKNESS'
+nset_radcont = 'NS_RADIALCONTRACTION'
+elset_th_front = 'ES_THICKNESS'
+elset_th_back = 'ES_THICKNESS_BACK'
+elset_th_side = 'ES_THICKNESS_SIDE'
+
 
 h_odb = O.openOdb(job + '.odb',readOnly=True)
 h_inst = h_odb.rootAssembly.instances[ h_odb.rootAssembly.instances.keys()[0] ]
@@ -40,16 +39,21 @@ h_step = h_odb.steps[ h_odb.steps.keys()[0] ]
 h_All_Frames = h_step.frames
 num_incs = len(h_All_Frames)
 
-h_nset_rp_top = h_odb.rootAssembly.nodeSets[nset_rp_top]
+h_nset_rp_top = h_inst.nodeSets[nset_rp_top]
 h_nset_dr_lo = h_inst.nodeSets[nset_dr_lo]
 h_nset_dr_hi = h_inst.nodeSets[nset_dr_hi]
-h_elset_th = h_inst.elementSets[elset_th]
+h_nset_urprof = h_inst.nodeSets[nset_radcont]
+h_elset_th = h_inst.elementSets[elset_th_front]
+h_elset_th_b = h_inst.elementSets[elset_th_back]
+h_elset_th_s = h_inst.elementSets[elset_th_side]
 numel_th = len(h_elset_th.elements)
 
 F = np.empty( (num_incs) )
 P = np.empty( (num_incs) )
+V = np.ones( (num_incs) )
 d_lo = np.empty( (num_incs) )
 d_hi = np.empty( (num_incs) )
+
 sts = np.empty((num_incs,3))
 stn = np.empty((num_incs,3))
 
@@ -57,6 +61,10 @@ stn = np.empty((num_incs,3))
 Lg_lo = h_nset_dr_lo.nodes[0].coordinates[2]
 Lg_hi = h_nset_dr_hi.nodes[0].coordinates[2]
 
+# Some special handling for ur_prof since the jth value of U subset does not correspond to jth node in the set :(
+numnode_prof = len(h_nset_urprof.nodes)
+urnodes = np.array([i.label for i in h_nset_urprof.nodes])
+ur_prof = np.empty((num_incs+2, numnode_prof))
 
 for i in range(num_incs):
     F[i] = h_All_Frames[i].fieldOutputs['CF'].getSubset(region=h_nset_rp_top).values[0].data[2]
@@ -64,19 +72,41 @@ for i in range(num_incs):
     d_lo[i] = h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_dr_lo).values[0].data[2]
     d_hi[i] = h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_dr_hi).values[0].data[2]
     tempsts, tempstn = 0, 0
+    stresses = h_All_Frames[i].fieldOutputs['S'].getSubset(region=h_elset_th).values
+    strains =  h_All_Frames[i].fieldOutputs['LE'].getSubset(region=h_elset_th).values
     for j in range(numel_th):
-         tempsts += h_All_Frames[i].fieldOutputs['S'].getSubset(region=h_elset_th).values[j].data[:3]
-         tempstn += h_All_Frames[i].fieldOutputs['LE'].getSubset(region=h_elset_th).values[j].data[:3]
-    sts[i] = tempsts/3
-    stn[i] = tempstn/3
+         tempsts += stresses[j].data[:3]
+         tempstn += strains[j].data[:3]
+    sts[i] = tempsts/numel_th
+    stn[i] = tempstn/numel_th
+    
+    # For some reason, the jth node in the set didn't correspond to the .values[j].nodeLabel
+    # So I have to do this ridiculous thing where I create a subset for each node in the set
+    uvals = h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_urprof)
+    for j in range(numnode_prof):
+        h_node = h_nset_urprof.nodes[j]
+        if i == 0:
+            ur_prof[0,j] = h_node.coordinates[2]
+            ur_prof[1,j] = h_node.coordinates[0]
+        nodeUvals = uvals.getSubset(region=h_node).values[0]
+        ur_prof[i+2,j] = nodeUvals.data[0]
+        if nodeUvals.nodeLabel != h_node.label:
+            print "Warning...you're getting node mistmatch in the profile."
+            
+    #for j in range(numnode_prof):
+    #    print h_nset_urprof.nodes[j].label, h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_urprof).values[j].nodeLabel
 
 h_odb.close()
 
 # Convert disp to d/Lg
 d_lo, d_hi = d_lo/Lg_lo, d_hi/Lg_hi
 
-# Since half model, multiple F by 2
-F*=2
+if half == 'True':
+    # Since half model, multiple F by 2
+    F*=2
+
+sig_x = F/(2*pi*R*t) 
+sig_q = P*R/t
 
 def headerline(fname, hl):
     fid = open(fname, 'r')
@@ -92,9 +122,19 @@ def headerline(fname, hl):
 
 # Save
 fname = '%s_results.dat'%(job)
-np.savetxt(fname, X = np.vstack((F, P, F/(2*pi*R*t), P*R/t, d_lo, d_hi,sts.T,stn.T)).T, fmt='%.15f', delimiter=', ')
-headerline(fname, '#[0] Force (kip), [1]Pressure (ksi), [2]Nom AxSts, [3]Nom Shear Sts, [4]d/Lg lo, [5]d/Lg hi, [6,7,8]S11,22,33, [9,10,11]LE11,22,33')
 
+np.savetxt(fname, X = np.vstack((F, P, sig_x, sig_q, d_lo, d_hi,sts.T,stn.T, V)).T, fmt='%.6f', delimiter=', ')
+hl = '#[0] Force (kip), [1]Pressure (ksi), [2]NomAxSts, [3]NomHoopSts,' 
+hl += ' [4]d/Lg lo, [5]d/Lg hi, [6,7,8]S11,22,33, [9,10,11]LE11,22,33, [12]Vol(meaningless here)'
+headerline(fname, hl)
+
+ur_prof = ur_prof[:,ur_prof[0].argsort()]
+fname = 'UR.dat'
+np.savetxt(fname, X=ur_prof, fmt='%.8f', delimiter=',')
+hl = '#1st line: Undef Z-coord of nodes\n'
+hl += '#2nd line: Undef r-coord of nodes\n'
+hl += '#3+nth line: nth incremend Ur of node in column'
+headerline(fname,hl)
 #
 #
 #
