@@ -212,7 +212,7 @@ fid.write('*************** FLUID CAV  *************\n')
 fid.write('****************************************\n')
 fid.write('*fluid behavior, name=FLUID\n')
 fid.write('*fluid density\n' + 
-          '0.03158\n'
+          '1.0\n'
          )
 # You need a blank line after fluid cav...two newline characters!
 fid.write('*fluid cavity, name=FLUIDCAVITY, behavior=FLUID, refnode=INSTANCE.RP_CAV, surface=SURF_CAVITY\n\n')
@@ -257,11 +257,15 @@ if n.isnan(a_true):
               )
 elif n.isclose(alpha, 0.5):
     # Just pressure.  Apply fluid flux only
+    # Calculate volume of cavity
+    vol = pi*R*R*zcoord
+    if not fullring:
+        vol*=.5
     fid.write('*static\n' +
-              '0.005, 1., 1e-06, .05\n'
+              '0.0025, 1., 1e-06, .0025\n'
               )
     fid.write('*fluid flux\n' + 
-              'INSTANCE.RP_CAV, 1\n'
+              'INSTANCE.RP_CAV, {:.3f}\n'.format(vol/3)
               )
 else:
     # Pressurizing and pulling.  Must use riks 

@@ -21,7 +21,7 @@ try:
     R = float(R)
     t = float(t)
 except:
-    job = 'GMPT1'
+    job = 'job'
     t = 0.0500
     R = 0.8391
     half = True
@@ -33,9 +33,11 @@ nset_rp_top = 'NS_RPTOP'
 nset_rp_bot = 'NS_RPBOT'
 nset_dr_lo = 'NS_DISPROT_LO'
 nset_dr_hi = 'NS_DISPROT_HI'
+nset_radcont = 'NS_RADIALCONTRACTION'
 elset_th_front = 'ES_THICKNESS'
 elset_th_back = 'ES_THICKNESS_BACK'
 elset_th_side = 'ES_THICKNESS_SIDE'
+
 
 h_odb = O.openOdb(job + '.odb',readOnly=True)
 h_inst = h_odb.rootAssembly.instances[ h_odb.rootAssembly.instances.keys()[0] ]
@@ -44,21 +46,24 @@ h_hist = h_step.historyRegions.keys()[0]
 h_All_Frames = h_step.frames
 num_incs = len(h_All_Frames)
 
-#h_nset_rp_top = h_odb.rootAssembly.nodeSets[nset_rp_top]
 h_nset_rp_top = h_inst.nodeSets[nset_rp_top]
 h_nset_dr_lo = h_inst.nodeSets[nset_dr_lo]
 h_nset_dr_hi = h_inst.nodeSets[nset_dr_hi]
-h_histrgn = h_step.historyRegions[h_hist]
+h_nset_urprof = h_inst.nodeSets[nset_radcont]
 h_elset_th = h_inst.elementSets[elset_th_front]
 h_elset_th_b = h_inst.elementSets[elset_th_back]
 h_elset_th_s = h_inst.elementSets[elset_th_side]
+# Special treatment for the cavity pressure and volume, which is history data
+h_histrgn = h_step.historyRegions[h_hist]
 numel_th = len(h_elset_th.elements)
+numnode_prof = len(h_nset_urprof.nodes)
 
 F = np.empty( (num_incs) )
 P = np.empty( (num_incs) )
 V = np.empty( (num_incs) )
 d_lo = np.empty( (num_incs) )
 d_hi = np.empty( (num_incs) )
+ur_prof = np.empty((num_incs+2, numnode_prof))
 sts = np.empty((num_incs,3))
 stn = np.empty((num_incs,3))
 
@@ -68,16 +73,25 @@ Lg_hi = h_nset_dr_hi.nodes[0].coordinates[2]
 
 for i in range(num_incs):
     F[i] = h_All_Frames[i].fieldOutputs['CF'].getSubset(region=h_nset_rp_top).values[0].data[2]
-    P[i] = h_All_Frames[i].fieldOutputs['P'].values[0].data
+    # P[i] = h_All_Frames[i].fieldOutputs['P'].values[0].data
     d_lo[i] = h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_dr_lo).values[0].data[2]
     d_hi[i] = h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_dr_hi).values[0].data[2]
     tempsts, tempstn = 0, 0
+    stresses = h_All_Frames[i].fieldOutputs['S'].getSubset(region=h_elset_th).values
+    strains =  h_All_Frames[i].fieldOutputs['LE'].getSubset(region=h_elset_th).values
     for j in range(numel_th):
-         tempsts += h_All_Frames[i].fieldOutputs['S'].getSubset(region=h_elset_th).values[j].data[:3]
-         tempstn += h_All_Frames[i].fieldOutputs['LE'].getSubset(region=h_elset_th).values[j].data[:3]
+         tempsts += stresses[j].data[:3]
+         tempstn += strains[j].data[:3]
     sts[i] = tempsts/numel_th
     stn[i] = tempstn/numel_th
-
+    
+    uvals = h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_urprof).values
+    for j in range(numnode_prof):
+        if i == 0:
+            ur_prof[0,j] = h_nset_urprof.nodes[j].coordinates[2]
+            ur_prof[1,j] = h_nset_urprof.nodes[j].coordinates[0]
+        ur_prof[i+2,j] = uvals[j].data[0]
+    
 for k,i in enumerate(h_histrgn.historyOutputs['PCAV'].data):
     P[k] = i[1]
 for k,i in enumerate(h_histrgn.historyOutputs['CVOL'].data):
@@ -88,12 +102,12 @@ h_odb.close()
 # Convert disp to d/Lg
 d_lo, d_hi = d_lo/Lg_lo, d_hi/Lg_hi
 
-if half = True:
+if half == True:
     # Since half model, multiple F by 2
     F*=2
 
 sig_x = F/(2*pi*R*t) + P*R/(2*t)
-siq_q = P*R/t
+sig_q = P*R/t
 
 def headerline(fname, hl):
     fid = open(fname, 'r')
