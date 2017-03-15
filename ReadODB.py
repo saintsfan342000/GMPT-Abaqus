@@ -26,7 +26,7 @@ if not os.path.isfile(job + '.odb'):
 nset_rp_top = 'NS_RPTOP'
 nset_rp_bot = 'NS_RPBOT'
 nset_dr_lo = 'NS_DISPROT_LO'
-nset_dr_hi = 'NS_DISPROT_HI'
+nset_dr_back = 'NS_DISPROT_LO_BACK'
 nset_radcont = 'NS_RADIALCONTRACTION'
 elset_th_front = 'ES_THICKNESS'
 elset_th_back = 'ES_THICKNESS_BACK'
@@ -42,7 +42,7 @@ num_incs = len(h_All_Frames)
 
 h_nset_rp_top = h_inst.nodeSets[nset_rp_top]
 h_nset_dr_lo = h_inst.nodeSets[nset_dr_lo]
-h_nset_dr_hi = h_inst.nodeSets[nset_dr_hi]
+h_nset_dr_back = h_inst.nodeSets[nset_dr_back]
 h_nset_urprof = h_inst.nodeSets[nset_radcont]
 h_elset_th = h_inst.elementSets[elset_th_front]
 h_elset_th_b = h_inst.elementSets[elset_th_back]
@@ -55,14 +55,14 @@ F = np.empty( (num_incs) )
 P = np.empty( (num_incs) )
 V = np.empty( (num_incs) )
 d_lo = np.empty( (num_incs) )
-d_hi = np.empty( (num_incs) )
+d_back = np.empty( (num_incs) )
 
 sts = np.empty((num_incs,3))
 stn = np.empty((num_incs,3))
 
 # Grab undef coords of dr_lo and hi
 Lg_lo = h_nset_dr_lo.nodes[0].coordinates[2]
-Lg_hi = h_nset_dr_hi.nodes[0].coordinates[2]
+Lg_back = h_nset_dr_back.nodes[0].coordinates[2]
 
 # Some special handling for ur_prof since the jth value of U subset does not correspond to jth node in the set :(
 numnode_prof = len(h_nset_urprof.nodes)
@@ -73,7 +73,7 @@ for i in range(num_incs):
     F[i] = h_All_Frames[i].fieldOutputs['CF'].getSubset(region=h_nset_rp_top).values[0].data[2]
     # P[i] = h_All_Frames[i].fieldOutputs['P'].values[0].data
     d_lo[i] = h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_dr_lo).values[0].data[2]
-    d_hi[i] = h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_dr_hi).values[0].data[2]
+    d_back[i] = h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_dr_back).values[0].data[2]
     tempsts, tempstn = 0, 0
     stresses = h_All_Frames[i].fieldOutputs['S'].getSubset(region=h_elset_th).values
     strains =  h_All_Frames[i].fieldOutputs['LE'].getSubset(region=h_elset_th).values
@@ -109,7 +109,7 @@ for k,i in enumerate(h_histrgn.historyOutputs['CVOL'].data):
 h_odb.close()
 
 # Convert disp to d/Lg
-d_lo, d_hi = d_lo/Lg_lo, d_hi/Lg_hi
+d_lo, d_back = d_lo/Lg_lo, d_back/Lg_back
 
 if half == True:
     # Since half model, multiple F by 2
@@ -133,13 +133,13 @@ def headerline(fname, hl):
 # Save
 fname = '%s_results.dat'%(job)
 
-np.savetxt(fname, X = np.vstack((F, P, sig_x, sig_q, d_lo, d_hi,sts.T,stn.T, V)).T, fmt='%.6f', delimiter=', ')
+np.savetxt(fname, X = np.vstack((F, P, sig_x, sig_q, d_lo, d_back,sts.T,stn.T, V)).T, fmt='%.6f', delimiter=', ')
 hl = '#[0] Force (kip), [1]Pressure (ksi), [2]NomAxSts, [3]NomHoopSts,' 
-hl += ' [4]d/Lg lo, [5]d/Lg hi, [6,7,8]S11,22,33, [9,10,11]LE11,22,33, [12]Vol'
+hl += ' [4]d/Lg lo, [5]d/Lg Back, [6,7,8]S11,22,33, [9,10,11]LE11,22,33, [12]Vol'
 headerline(fname, hl)
 
 ur_prof = ur_prof[:,ur_prof[0].argsort()]
-fname = 'UR.dat'
+fname = '%s_UR.dat'%(job)
 np.savetxt(fname, X=ur_prof, fmt='%.8f', delimiter=',')
 hl = '#1st line: Undef Z-coord of nodes\n'
 hl += '#2nd line: Undef r-coord of nodes\n'

@@ -50,8 +50,8 @@ elemlist = n.load('./ConstructionFiles/abaqus_elements.npy')
 fid =  open('{}.inp'.format(inpname),'w')
 
 ## Info for me
-fid.write('** TT2={}\n'.format(expt))
-fid.write('** alpha = {:.3f}\n'.format(a_true))
+fid.write('** GMPT={}\n'.format(expt))
+fid.write('** alpha = {:.3f}\n'.format(alpha))
 fid.write('** num_el_fine_th = {}\n'.format(num_el_fine_th))
 fid.write('** Imperfection = {} #Not percentage\n'.format(dt))
 fid.write('** Eccentricity = {} #Not percentage\n'.format(ecc))
@@ -59,6 +59,7 @@ fid.write('** Rm = {:.4f}\n'.format(R))
 fid.write('** tg = {:.4f}\n'.format(t))
 fid.write('** ID = {}\n'.format(ID))
 fid.write('** constit = "{}"\n'.format(constit))
+fid.write('** Fluid Cavity and elements.  If alpha = 0.5, then flux control\n')
 z = time.localtime()
 fid.write('** Generated on {}/{}/{} at {}:{}\n'.format(z[1],z[2],z[0],z[3],z[4]))
 
@@ -102,6 +103,11 @@ po = n.array([1.9685/2, 0, 0.5])
 loc = n.argmin( n.linalg.norm(nodelist[:,1:] - po, axis=1) )
 nodenum = nodelist[loc, 0]
 fid.write('*nset, nset=NS_DISPROT_LO\n')
+fid.write('{:.0f}\n'.format(nodenum))
+po = n.array([-1.9685/2, 0, 0.5])
+loc = n.argmin( n.linalg.norm(nodelist[:,1:] - po, axis=1) )
+nodenum = nodelist[loc, 0]
+fid.write('*nset, nset=NS_DISPROT_LO_BACK\n')
 fid.write('{:.0f}\n'.format(nodenum))
 # Reference points
 nodenum, zcoord = nodelist[:,0].max()+1, nodelist[:,3].max()
@@ -189,7 +195,7 @@ fid.write('***************  MATERIAL **************\n')
 fid.write('****************************************\n')
 
 if constit in ['vm', 'VM']:
-    with open('./ConstructionFiles/abaqus_material_VM.txt','r') as matfid:
+    with open('./ConstructionFiles/abaqus_material_VM_TT20.txt','r') as matfid:
         mat = matfid.read()
         fid.write(mat)
         matfid.close()
