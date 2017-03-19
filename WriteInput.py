@@ -33,7 +33,7 @@ press*=(t/R)*500 # hoop stres to pressure
 # The *500 is b/c abaqus behaves odd when the cloads are O(1) 
 # The behavior is normal when the cloads are O(1000)
 # We'll divide the max LPF by 500 further down
-K = (a_true-.5)*(2*pi*R*R)  
+K = (2*a_true-1)*(pi*R*R)  
 force = K*press # force
 # Disp. control:  Monitor axial disp
 riks_DOF_num = 3
@@ -96,19 +96,7 @@ with open('./ConstructionFiles/abaqus_sets.txt','r') as setfid:
         fullring = False
     else:
         fullring = True
-# One more dip-rot tracking node, that nearest to X=1.9685/2, Y=0, Z = 0.64
-# I'm doing it here b/c it's easy to work with the entire nodelist
-# po = n.array([1.9685/2, 0, 2.12])
-po = n.array([1.9685/2, 0, 0.5])
-loc = n.argmin( n.linalg.norm(nodelist[:,1:] - po, axis=1) )
-nodenum = nodelist[loc, 0]
-fid.write('*nset, nset=NS_DISPROT_LO\n')
-fid.write('{:.0f}\n'.format(nodenum))
-po = n.array([-1.9685/2, 0, 0.5])
-loc = n.argmin( n.linalg.norm(nodelist[:,1:] - po, axis=1) )
-nodenum = nodelist[loc, 0]
-fid.write('*nset, nset=NS_DISPROT_LO_BACK\n')
-fid.write('{:.0f}\n'.format(nodenum))
+
 # Reference points
 nodenum, zcoord = nodelist[:,0].max()+1, nodelist[:,3].max()
 fid.write('*node, nset=NS_RPTOP\n' +
@@ -129,6 +117,7 @@ e1 = elemlist[:,0].max()
 for k,i in enumerate(tri.simplices):
     fid.write('{:d}, {:.0f}, {:.0f}, {:.0f}\n'.format(e1+k+1,
           nodes[i[0],0], nodes[i[2],0], nodes[i[1],0]))
+
 # Orientation, transformation, section
 fid.write('*orientation, name=ANISOTROPY, system=cylindrical, definition=coordinates\n' +
           '0, 0, 0, 0, 0, 1\n'
@@ -184,7 +173,6 @@ fid.write('** Surface definition for the fluid cavity\n' +
           'INSTANCE.ES_WHOLEID, S6\n'
           )
 fid.write('*end assembly\n')
-
 # end assembly
 
 ###################
@@ -210,9 +198,9 @@ elif constit in ['ANIS', 'anis']:
         fid.write(mat)
         matfid.close()
 
-###################
+########################
 ### Fluid and cavity ###
-###################
+########################
 fid.write('****************************************\n')
 fid.write('*************** FLUID CAV  *************\n')
 fid.write('****************************************\n')
@@ -222,7 +210,6 @@ fid.write('*fluid density\n' +
          )
 # You need a blank line after fluid cav...two newline characters!
 fid.write('*fluid cavity, name=FLUIDCAVITY, behavior=FLUID, refnode=INSTANCE.RP_CAV, surface=SURF_CAVITY\n\n')
-
 
 ###################
 ### INITIAL BCs ###
@@ -245,6 +232,7 @@ fid.write('INSTANCE.NS_BOTTOMSURFACE, 3, 3 \n')
 # Cavity ref node
 fid.write('** Cavity reference node fully constrained\n')
 fid.write('INSTANCE.RP_CAV, 1, 6\n')
+
 ###################
 ###### STEP #######
 ###################
@@ -321,22 +309,3 @@ fid.write('*end step\n')
 # end step
 fid.close()
 
-'''
-Abaqus Users Guide: Sxn 2.1.5
-Output database output of field vector-valued quantities at transformed nodes is in the global system. The local transformations are also written to the output database. You can apply these transformations to the results in the Visualization module of Abaqus/CAE to view the vector components in the transformed systems.
-'''
-
-'''
-# History output (coor)
-fid.write('** COORn must be called under history output\n')
-fid.write('*output, history, frequency=1\n')
-fid.write('*node output, nset=INSTANCE.NS_DISPROT_LO\n' +
-          'COOR1, COOR2, COOR3\n'
-          )
-fid.write('*node output, nset=INSTANCE.NS_DISPROT_HI\n' +
-          'COOR1, COOR2, COOR3\n'
-          )
-fid.write('*node output, nset=INSTANCE.NS_RADIALCONTRACTION\n' +    # radial contraction set
-          'COOR1, COOR2, COOR3\n'
-          )        
-'''

@@ -8,7 +8,7 @@
 ** ID = 1.6282
 ** constit = "vm"
 ** Fluid Cavity and elements.  If alpha = 0.5, then flux control
-** Generated on 3/13/2017 at 14:43
+** Generated on 3/18/2017 at 12:38
 *Heading
 Z is Tube Axis
 Min Wall Thickness is (x>0,y=0)
@@ -71894,6 +71894,10 @@ Min Wall Thickness is (x>0,y=0)
 609, 610, 611, 612, 613, 614, 615, 616
 *nset, nset=NS_DISPROT_HI
 40811
+*nset, nset=NS_DISPROT_LO
+18943
+*nset, nset=NS_DISPROT_LO_BACK
+19096
 *nset, nset=NS_RADIALCONTRACTION
 463, 1079, 1695, 2311, 2927, 3543, 4159, 4775, 5391, 6007, 6623, 7239, 7855, 8471, 9087, 9703
 10319, 10935, 11551, 12167, 12783, 13399, 14015, 14631, 15247, 15863, 16479, 17095, 17711, 18327, 18943, 19559
@@ -72639,8 +72643,6 @@ Min Wall Thickness is (x>0,y=0)
 30108 ,30109 ,30110 ,30111 ,30112 ,30113 ,30114 ,30115 ,30116 ,30117 ,30118 ,30119 ,30120 ,30121 ,30122 ,30123
 30124 ,30125 ,30126 ,30127 ,30128 ,30129 ,30130 ,30131 ,30132 ,30133 ,30134 ,30135 ,30136 ,30137 ,30138 ,30139
 30140 ,30141
-*nset, nset=NS_DISPROT_LO
-18943
 *node, nset=NS_RPTOP
 41689, 0, 0, 2.624905874562
 *node, nset=RP_CAV

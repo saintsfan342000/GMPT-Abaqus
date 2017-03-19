@@ -13,7 +13,7 @@ nodelist = ['nc_cors', 'nc_fine', 'nc_med',
             'nc_ref1_mid', 'nc_ref1_r', 'nc_ref1_q',
             'nc_ref2_q', 'ni_cors', 'ni_fine',
             'ni_med', 'ni_ref1_mid', 'ni_ref1_r',
-            'ni_ref1_q', 'ni_ref2_q']
+            'ni_ref1_q', 'ni_ref2_q', 'nc_all', 'ni_all']
 
 for k,name in enumerate(nodelist):
     exec('{} = n.load("./ConstructionFiles/{}.npy")'.format(name,name))
@@ -60,6 +60,20 @@ if len(nodenums) != 1:
     raise ValueError('Seeking a single node for NS_DISPROT_LO, but len(nodenums)!=1')
 else:
     fid.write('{}\n'.format(nodenums[0]))
+
+# NS_DISP_LO:  A node at 0.5" above symplane on the front
+fid.write('*nset, nset=NS_DISPROT_LO\n')
+po = n.array([1.9685/2, 0.5, 0]) # r, z, q
+loc = n.linalg.norm(nc_all[:,:-1] - po, axis=1).argmin()
+nodenum = nc_all[loc, -1]
+fid.write('{:.0f}\n'.format(nodenum))
+
+# NS_DISP_LO_BACK:  A node at 0.5" above symplane on the back
+fid.write('*nset, nset=NS_DISPROT_LO_BACK\n')
+po = n.array([1.9685/2, 0.5, pi]) # r, z, q
+loc = n.linalg.norm(nc_all[:,:-1] - po, axis=1).argmin()
+nodenum = nc_all[loc, -1]
+fid.write('{:.0f}\n'.format(nodenum))
 
 #nset radial contraction
 # A line of nodes running up along the OD
@@ -197,15 +211,10 @@ for i,el in enumerate(elnums):
 # Elset_wholeid
 fid.write('*elset, elset=ES_WHOLEID\n')
 # Every element with a face on the ID
-# Easiest to work with node_indices_all
-# So first, for memory sake, delete all current arrays
-for k,name in enumerate(nodelist):
-    exec('del {}'.format(name))
 # Just take all nodes with thickness index == 0, and
 # all elements that contain any such a node
-NI = n.load('./ConstructionFiles/ni_all.npy')
-rng = (NI[:,0] == 0)
-nodenums = compress(rng, NI[:,3])
+rng = (ni_all[:,0] == 0)
+nodenums = compress(rng, ni_all[:,3])
 #rng = in1d(E[:,1:], nodenums)
 rng = n.zeros_like(E.shape[0], dtype=bool)
 for i in range(1,E.shape[1]):
@@ -213,7 +222,6 @@ for i in range(1,E.shape[1]):
 elnums = E[rng, 0]
 # Now exclude the elements that connect ref1_r to bottom of med thru thickness, because they don't have a face on the ID
 # Any element containing both a node with ni_ref1_r[:,0] == 1 and ni_ref1_r[:,0]==2
-ni_ref1_r = n.load('./ConstructionFiles/ni_ref1_r.npy')
 # An element must contain a node from each! of the following
 omit_nodes1 = ni_ref1_r[ ni_ref1_r[:,0] == 1, 3 ] # Node numbers to exclude
 omit_nodes2 = ni_ref1_r[ ni_ref1_r[:,0] == 2, 3 ] # Node numbers to exclude
