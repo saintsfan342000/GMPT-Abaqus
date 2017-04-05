@@ -15,7 +15,8 @@ import os
 from sys import argv
 pi = np.pi
 
-job, half = argv[1:]
+job = argv[1]
+half = True
 
 t = 0.0500
 R = 0.8391
@@ -36,7 +37,6 @@ elset_th_side = 'ES_THICKNESS_SIDE'
 h_odb = O.openOdb(job + '.odb',readOnly=True)
 h_inst = h_odb.rootAssembly.instances[ h_odb.rootAssembly.instances.keys()[0] ]
 h_step = h_odb.steps[ h_odb.steps.keys()[0] ]
-h_hist = h_step.historyRegions.keys()[0]
 h_All_Frames = h_step.frames
 num_incs = len(h_All_Frames)
 
@@ -47,9 +47,15 @@ h_nset_urprof = h_inst.nodeSets[nset_radcont]
 h_elset_th = h_inst.elementSets[elset_th_front]
 h_elset_th_b = h_inst.elementSets[elset_th_back]
 h_elset_th_s = h_inst.elementSets[elset_th_side]
-# Special treatment for the cavity pressure and volume, which is history data
-h_histrgn = h_step.historyRegions[h_hist]
 numel_th = len(h_elset_th.elements)
+# Need to find the historyRegion key that contains the 
+# NS_PCAV node to get CVOL and PCAV.In a riks analysis, 
+# the LPF is also written in a history region that is
+# the Assembly. We don't want that one.
+for k,i in enumerate( h_step.historyRegions.keys() ):
+    if i.rfind('Node') != -1:
+        h_histrgn = h_step.historyRegions[i]
+        break
 
 F = np.empty( (num_incs) )
 P = np.empty( (num_incs) )
@@ -133,7 +139,7 @@ def headerline(fname, hl):
 # Save
 fname = '%s_results.dat'%(job)
 
-np.savetxt(fname, X = np.vstack((F, P, sig_x, sig_q, d_lo, d_back,sts.T,stn.T, V)).T, fmt='%.6f', delimiter=', ')
+np.savetxt(fname, X = np.vstack((F, P, sig_x, sig_q, d_lo, d_back, sts.T, stn.T, V)).T, fmt='%.6f', delimiter=', ')
 hl = '#[0] Force (kip), [1]Pressure (ksi), [2]NomAxSts, [3]NomHoopSts,' 
 hl += ' [4]d/Lg lo, [5]d/Lg Back, [6,7,8]S11,22,33, [9,10,11]LE11,22,33, [12]Vol'
 headerline(fname, hl)
