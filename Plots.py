@@ -21,7 +21,7 @@ d = n.genfromtxt('{}_results.dat'.format(name), delimiter=',').T
 u = n.genfromtxt('{}_UR.dat'.format(name), delimiter=',')
 
 loc = n.argmax(d[1])
-d = d[:,:loc+1]
+d = d[:,:loc+20]
 
 alpha, blank = n.polyfit(d[3],d[2],1)
 annotstr = '{}\n$\\alpha$ = {:.2f}'.format(name,alpha)
@@ -34,6 +34,7 @@ for q,j in enumerate(Pspace):
 incs = incs.astype(int)
 
 incs = n.linspace(0,loc,5)[1:].astype(int)
+incs = n.hstack((incs,len(d[0])-1))
 
 # Ur profiles
 fig4 = p.figure()
@@ -102,6 +103,4 @@ fig1.savefig('F1.png',bbox_inches='tight')
 fig2.savefig('F2.png',bbox_inches='tight')
 fig3.savefig('F3.png',bbox_inches='tight')
 fig4.savefig('F4.png',bbox_inches='tight')
-
-p.show()
 
