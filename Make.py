@@ -18,25 +18,29 @@ if len(argv) != 7:
     println()
 else:
     argv, expt, num_el_fine_th, dt, eccen, inpname, constit = argv
-    d = n.genfromtxt('ExptParams.dat', delimiter=', ', dtype=str)
-    # [0]Expt no, [1]IDg, [2]Mean thickness, [3]Min thickness
-    alpha, ID, tg, tmin = d[ d[:,0]==expt, 1:].ravel()   
+    # expt, num_el_fine_th, dt, eccen, inpname, constit = '1', '3', '0', 'auto', 'blah', 'vm'  # For copying/debugging purposes
+    d = n.genfromtxt('ExptSummary.dat', delimiter=',', dtype=str)
+    # [0]Expt No., [1]Mon.Day, [2]Material, [3]Tube No., [4]Alpha, [5]Alpha-True, [6]Mean Radius, [7]Mean Thickness, [8]Eccentricity (pct)
+    alpha, Rm, tg, X = d[ d[:,0]==expt,5: ].ravel()
+    ID = '{:.4f}'.format((float(Rm)-float(tg)/2)*2)
     if eccen == 'auto':
-        eccen = 1 - float(tmin)/float(tg)
+        eccen = float(X)/100
         print('Eccen = {:.2f}'.format(eccen*100))
     
     inpname = inpname.split('.')[0] # In case I give an extension.
 
     Lg = '2.0'
     Ltop = '0.5'  # Length of thick section above radius/chamf
-    ODtop = '1.9685'    # Radius of thick section    
+    ODtop = '1.9675'    # Radius of thick section    
     R = '0.125'    # Radius of chamf
     
     ### Nodes
     println()
     print('Generating nodes.')
     os.system('python Nodes.py {:s} {:s} {:s} {:s} {:s} {:s} {:s} {:s}'.format(
-                Lg, Ltop, ODtop, ID, tg, R, num_el_fine_th, dt))
+                Lg, Ltop, ODtop, 
+                ID, tg, R, 
+                num_el_fine_th, dt))
     print('Done.')
 
     ### Elements
@@ -60,7 +64,8 @@ else:
     ### Write Input
     println()
     print('Writing input file, {}.inp'.format(inpname))
-    os.system('python WriteInput.py {:s} {:s} {:s} {:s} {:s} {:s} {:s}'.format(
-              expt, inpname, constit, num_el_fine_th, 
-              dt, str(eccen), ID ))
+    os.system('python WriteInput.py {:s} {:s} {:s} {:s} {:s} {:s} {:s} {:s} {:s} {:s}'.format(
+              expt, inpname, constit, 
+              num_el_fine_th, dt, str(eccen), 
+              ID, Rm, tg, alpha ))
     print('Done!')

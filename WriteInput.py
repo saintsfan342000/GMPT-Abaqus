@@ -10,34 +10,35 @@ import time
 Writes the input file
 '''
 
-if len(argv) == 8:
+if len(argv) == 11:
     expt = int(argv[1])
     inpname = argv[2]
     constit = argv[3]
-    num_el_fine_th = argv[4]
-    dt = argv[5]
-    ecc = argv[6]
-    ID = argv[7]
+    num_el_fine_th = int(argv[4])
+    dt = float(argv[5])
+    ecc = float(argv[6])
+    ID = float(argv[7])
+    R = float(argv[8])
+    t = float(argv[9])
+    alpha = float(argv[10])
 else:
-    raise StandardError('Wrong number of args. Require 7')
+    raise ValueError('Wrong number of args. Require 10')
 
 # Make sure we have a valid constitutive model
 if not( constit in ['vm', 'VM', 'H8', 'h8', 'anis', 'ANIS']):
     raise ValueError("Bad constit given '{}'.\nMust be 'vm', 'VM', 'H8', 'anis', 'ANIS'.".format(constit))
 
-# Open up TT-Summary to get the limit loads and some other info
-key = read_excel('PT-Summary.xlsx',sheetname='Summary',header=None,index_col=None,skiprows=1).values
-key = key[ key[:,0] == expt ]
-alpha, a_true, R, t, force, press, dmax = n.mean(key[:,[1,2,3,4,9,10,-2]], axis=0) # Since this has shape (1,...)
-press*=(t/R)*500 # hoop stres to pressure
+
+press = 1400  # This is 2.8 ksi * 500
 # The *500 is b/c abaqus behaves odd when the cloads are O(1) 
 # The behavior is normal when the cloads are O(1000)
-# We'll divide the max LPF by 500 further down
-K = (2*a_true-1)*(pi*R*R)  
+# I do 500 rather than 1000 just to have better resolution on the LPF
+# The max LPF is very small accordingly 
+K = (2*alpha-1)*(pi*R*R)  
 force = K*press # force
 # Disp. control:  Monitor axial disp
 riks_DOF_num = 3
-riks_DOF_val = 1.2*(dmax*4)/2
+riks_DOF_val = .4
 
 print('Cload 3 magnitude: {:.2f}'.format(force))
 print('Dsload magnitude:  {:.2f}'.format(press))
@@ -240,7 +241,7 @@ fid.write('****************************************\n')
 fid.write('*************** STEP *******************\n')
 fid.write('****************************************\n')
 fid.write('*step, name=STEP, nlgeom=yes, inc=200\n')
-if n.isnan(a_true):
+if n.isnan(alpha):
     # Pure tension case, apply only U3
     # NOT TESTED
     fid.write('*static\n' +
