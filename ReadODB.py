@@ -107,10 +107,8 @@ for i in range(num_incs):
     #    print h_nset_urprof.nodes[j].label, h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_urprof).values[j].nodeLabel
 
     
-for k,i in enumerate(h_histrgn.historyOutputs['PCAV'].data):
-    P[k] = i[1]
-for k,i in enumerate(h_histrgn.historyOutputs['CVOL'].data):
-    V[k] = i[1]
+P = n.asarray(h_histrgn.historyOutputs['PCAV'].data)[:,1]
+V = n.asarray(h_histrgn.historyOutputs['CVOL'].data)[:,1]
 
 h_odb.close()
 
