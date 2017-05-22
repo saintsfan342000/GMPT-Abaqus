@@ -19,6 +19,9 @@ r, [:,0] = thru thickness, or radial coordinate
 z, [:,1] = Axial coord
 q, [:,2] = Angle coordinate theta
 '''
+
+fullring = False
+
 try:
     worthless, Lg, Ltop, ODtop, ID, tg, R, num_el_fine_r, dt = argv
     Lg = float(Lg)  # Half-length of gage section
@@ -39,7 +42,10 @@ except:
     num_el_fine_r = 3 # Num elements thru the test section thicknes
     dt = 0
 
-angle = 1*pi    # 2pi for full tube
+if fullring == False:
+    angle = 1*pi    # 2pi for full tube
+else:
+    angle = 2*pi
 angle_fine = pi/8 # The fine mesh will run from 0 to angle_fine
 coord_end_chamf = sqrt( R**2 - (ODtop-(ID+tg+R))**2 ) + Lg  # y-coord where chamfer reaches ODtop
 ztop = coord_end_chamf + Ltop

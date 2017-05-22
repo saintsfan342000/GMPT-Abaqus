@@ -10,7 +10,9 @@ import time
 Writes the input file
 '''
 
-if len(argv) == 11:
+fullring = False
+
+if len(argv[1:]) == 10:
     expt = int(argv[1])
     inpname = argv[2]
     constit = argv[3]
@@ -93,10 +95,6 @@ with open('./ConstructionFiles/abaqus_sets.txt','r') as setfid:
     sets = setfid.read()
     fid.write(sets)
     setfid.close()
-    if sets.rfind('NS_AXIALSYMM') != -1:
-        fullring = False
-    else:
-        fullring = True
 
 # Reference points
 nodenum, zcoord = nodelist[:,0].max()+1, nodelist[:,3].max()

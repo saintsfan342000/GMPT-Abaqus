@@ -37,7 +37,9 @@ else:
     ### Nodes
     println()
     print('Generating nodes.')
-    os.system('python Nodes.py {:s} {:s} {:s} {:s} {:s} {:s} {:s} {:s}'.format(
+    os.system( ('python Nodes.py {:s} {:s} {:s}' +
+                '{:s} {:s} {:s}' +
+                '{:s} {:s}').format(
                 Lg, Ltop, ODtop, 
                 ID, tg, R, 
                 num_el_fine_th, dt))
@@ -64,8 +66,12 @@ else:
     ### Write Input
     println()
     print('Writing input file, {}.inp'.format(inpname))
-    os.system('python WriteInput.py {:s} {:s} {:s} {:s} {:s} {:s} {:s} {:s} {:s} {:s}'.format(
+    os.system(('python WriteInput.py {:s} {:s} {:s} ' +
+                '{:s} {:s} {:s} ' + 
+                '{:s} {:s} {:s} ' +
+                '{:s}').format(
               expt, inpname, constit, 
               num_el_fine_th, dt, str(eccen), 
-              ID, Rm, tg, alpha ))
+              ID, Rm, tg,
+              alpha ))
     print('Done!')

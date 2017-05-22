@@ -9,6 +9,8 @@ z, [:,1] = Axial coord
 q, [:,2] = Angle coordinate theta (radians)
 '''
 
+fullring = False
+
 ni3d_fine = n.load('./ConstructionFiles/ni3d_fine.npy')
 ni3d_med = n.load('./ConstructionFiles/ni3d_med.npy')
 ni3d_cors = n.load('./ConstructionFiles/ni3d_cors.npy')
@@ -16,16 +18,6 @@ ni3d_ref1_mid = n.load('./ConstructionFiles/ni3d_ref1_mid.npy')
 ni3d_ref1_r = n.load('./ConstructionFiles/ni3d_ref1_r.npy')
 ni3d_ref1_q = n.load('./ConstructionFiles/ni3d_ref1_q.npy')
 ni3d_ref2_q = n.load('./ConstructionFiles/ni3d_ref2_q.npy')
-nc_cors = n.load('./ConstructionFiles/nc_cors.npy')
-
-# Check if this is full ring (2pi) or half model,
-# as this affects connectivity
-dq = n.diff(nc_cors[:,2]).max()
-if n.isclose(nc_cors[:,2].max(),(2*pi-dq),rtol=.001):
-    fullring = True
-else:
-    fullring = False
-del nc_cors
 
 # Mesh definitions
 num_el_fine_r = ni3d_fine.shape[0] - 1

@@ -7,6 +7,8 @@ from sys import argv
 Generates the node sets and element sets.
 '''
 
+fullring = False
+
 Lg = float(argv[1])
 
 nodelist = ['nc_cors', 'nc_fine', 'nc_med',
@@ -94,11 +96,6 @@ for i,no in enumerate(nodenums):
         fid.write('{:.0f}, '.format(no))
 # NS_AxialSymm
 # A set of nodes on the two edges if we've done half-ring
-dq = n.diff(nc_cors[:,2]).max()
-if n.isclose(nc_cors[:,2].max(),(2*pi-dq),rtol=.001):
-    fullring = True
-else:
-    fullring = False
 if not fullring:
     fid.write('*nset, nset=NS_AXIALSYMM\n')
     nodenums = n.empty(0)
