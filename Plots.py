@@ -12,6 +12,8 @@ if len(argv) != 2:
             'and *_UR.dat files.  Proper opertation is for your pwd'+
             ' to be the folder where the *dat files are.  If you call'+
             '"$ python ../../Plots.py <jobname>" it will work.')
+    raise IndexError('')
+    
 name = argv[1]
 
 d = n.genfromtxt('{}_results.dat'.format(name), delimiter=',').T
@@ -19,6 +21,11 @@ d = n.genfromtxt('{}_results.dat'.format(name), delimiter=',').T
 #[4]d/Lg lo, [5]d/Lg hi, [6,7,8]S11,22,33, 
 # [9,10,11]LE11,22,33, [12]Vol'
 u = n.genfromtxt('{}_UR.dat'.format(name), delimiter=',')
+# Mirror so that it looks like the expt plot
+uneg = u.copy()
+uneg[0]*=-1
+u = n.hstack((u,uneg))
+u = u[:, u[0].argsort() ]
 
 loc = n.argmax(d[1])
 d = d[:,:loc+20]
@@ -37,19 +44,23 @@ incs = n.linspace(0,loc,5)[1:].astype(int)
 incs = n.hstack((incs,len(d[0])-1))
 
 # Ur profiles
+p.style.use('mysty-sub')
+p.rcParams['font.size'] = 18
+p.rcParams['axes.labelsize'] = 22
 fig4 = p.figure()
 ax4 = fig4.add_subplot(111)
 colors = []
 for j in incs:
-    l, = ax4.plot(u[j+2],u[0])
+    l, = ax4.plot(100*u[j+2]/.8393,2*u[0]/4)
     colors.append(l.get_color())
-ax4.set_xlabel('U$_\\mathsf{r}$ (in)')
-ax4.set_ylabel('Z$_\\mathsf{o}$\n(in)')
-ax4.axis(ymax=2, xmin=0)
+ax4.set_xlabel('u$_\\mathsf{r}$/R$_\\mathsf{o}$ (%)')
+ax4.set_ylabel('$\\frac{\\mathsf{2y}_\\mathsf{o}}{\\mathsf{L}_\\mathsf{g}}$')
+ax4.axis(xmin=0,ymin=-1,ymax=1)
 f.eztext(ax4, annotstr, 'ur')
-f.myax(ax4)
+f.myax(ax4, autoscale=.65, nudge=('left',.3,-.4))
 
 # Ax vs hoop sts
+p.style.use('mysty')
 fig1 = p.figure()
 ax1 = fig1.add_subplot(111)
 ax1.plot(d[3], d[2], 'b',label='Nominal')
@@ -103,4 +114,5 @@ fig1.savefig('F1.png',bbox_inches='tight')
 fig2.savefig('F2.png',bbox_inches='tight')
 fig3.savefig('F3.png',bbox_inches='tight')
 fig4.savefig('F4.png',bbox_inches='tight')
+n.savetxt('ProfileStages.dat',X=incs,fmt='%.0f',header='ProfileStages.  (genfromtxt reads this in as a 1D array)')
 
