@@ -7,7 +7,8 @@ import matplotlib.pyplot as p
 from mpl_toolkits import mplot3d
 
 '''
-Node coordinates for 3D TT model
+Node coordinates for 3D PT model
+Refines height and around...only supported for quarter tube (i.e. two planes of symm)
 Specify Lg, Ltop, ODtop, ID, tg, numleth either on command line or in script.
 Works by laying out the nodes in "orthogonal cylindrical" coordinates, 
 then at the end using x=rcos(q),y-rsin(q) to map to a cylinder in cartesian space
@@ -46,7 +47,7 @@ if fullring == False:
     angle = 1*pi    # 2pi for full tube
 else:
     angle = 2*pi
-angle_fine = pi/8 # The fine mesh will run from 0 to angle_fine
+angle_fine = pi/6 # The fine mesh will run from 0 to angle_fine
 coord_end_chamf = sqrt( R**2 - (ODtop-(ID+tg+R))**2 ) + Lg  # y-coord where chamfer reaches ODtop
 ztop = coord_end_chamf + Ltop
 start_ref1 = Lg/2  # y-coord of last node in fine-mesh elements, where the refine starts
@@ -63,18 +64,24 @@ def CalcOD(Y):
     return X
 
 # Fine mesh definitions
+# Keep as though fine mesh was going all the way around
 elht_fine = tg / num_el_fine_r # Elemt height equal to element width
 num_el_fine_z = int(start_ref1 // elht_fine + 1)   # Number of fine-mesh elements in z-dir
+while num_el_fine_z%3 != 0:
+    # Ensure num_el_fine_z is even multiple of 3 for reff_z
+    num_el_fine_z += 1
 num_node_fine_z = num_el_fine_z + 1    # Num nodes in z-dir up to START of refine
 num_node_fine_r = num_el_fine_r + 1
 dq_fine = elht_fine/ID  # Estimate angular step of an element
-num_el_fine_q = int(angle//dq_fine)
+num_el_fine_q = int(angle//dq_fine) # Estimate number of circumf. els
 if num_el_fine_q%9 != 0: 
+    # Correct
     num_el_fine_q-=(num_el_fine_q%9)
 # Adjust num if angle != 2pi
 if angle != 2*pi:
    num_el_fine_q+=1
 dq_fine = angle/(num_el_fine_q-1)   # Corrected angular step
+
 # medium mesh definitions
 num_el_med_r = int(num_el_fine_r/3)
 num_node_med_r = num_el_med_r + 1
@@ -88,16 +95,31 @@ num_node_cors_r = num_el_cors_r + 1
 elht_cors = 3*elht_med
 start_cors_z = start_ref2 + 1*elht_cors   # Again, not a thickness
 num_el_cors_z = int((ztop - start_cors_z) // elht_cors)   # Number of elements up height in coarse rgn
+if num_el_cors_z == 0:
+    num_el_cors_z = 1
 num_node_cors_z = num_el_cors_z + 1   # Num nodes in z-dir from start of coarse to top
 
+
+######################################
+############ FINE MESH #############
+######################################
 # Layout the fine-mesh nodes
+# qspace is still layed out as though they wrap all the way around, since this is reference by medium, etc.
+# later in the code.  The qspace used to generate fine nodes is qspace_fine
 zspace = linspace(0, start_ref1, num_node_fine_z)   # Linspace of z-coordinates of fine nodes, up to start_ref1
 zindspace = n.arange(len(zspace))   # Corresponding indices
 if angle == 2*pi:
     qspace = n.linspace(0, angle-dq_fine, num_el_fine_q)  # Linspace of theta-coordinates
 else:
     qspace = n.linspace(0, angle, num_el_fine_q)
-qindspace = n.arange(len(qspace))
+# Here we define qspace_fine.  Need to be careful that we have an agreeable number of points here:
+# Lenght of qspace_fine must be divisible by 3
+rng = qspace <= angle_fine 
+while (rng.sum()-1)%3 != 0:
+    angle_fine += dq_fine
+    rng = (qspace <= angle_fine)
+qspace_fine = qspace[ rng ]
+qindspace = n.arange(len(qspace_fine))
 rindspace = n.arange(num_node_fine_r)
 OD_fine = CalcOD(zspace)
 nc_fine = empty((0,3))
@@ -106,7 +128,7 @@ for k,z in enumerate(zspace):
     # Node coords
     ro = ID+(.5*(dt*tg)*(1+n.cos(-pi*z/start_ref1))) # Here's the imperfection! 
     r = linspace(ro, OD_fine[k], num_node_fine_r)
-    nc_fine = vstack(( nc_fine, vstack(map(n.ravel,n.meshgrid(r,z,qspace))).T ))
+    nc_fine = vstack(( nc_fine, vstack(map(n.ravel,n.meshgrid(r,z,qspace_fine))).T ))
     # Node indices
     nod = asarray([zindspace[k]])
     ni_fine = vstack(( ni_fine, vstack(map(n.ravel,n.meshgrid(rindspace,k,qindspace))).T ))
@@ -120,7 +142,9 @@ ni3d_fine = n.empty((len(rindspace),len(zindspace),len(qindspace)))
 for v in ni_fine:
     ni3d_fine[v[0],v[1],v[2]] = v[3]
 
-# Medium nodes    
+######################################
+##########  MEDIUM MESH  ##########
+######################################
 zspace = linspace(start_med_z, start_ref2, num_node_med_z)
 # Refine the z-space on the chamfer so that it's smoother
 rng_lo =  zspace < Lg
@@ -154,7 +178,9 @@ ni3d_med = n.empty((len(rindspace),len(zindspace),len(qindspace)))
 for v in ni_med:
     ni3d_med[v[0],v[1],v[2]] = v[3]
 
-# coarse nodes    
+######################################
+########## COARSE  MESH ########## 
+######################################
 zspace = linspace(start_cors_z, ztop, num_node_cors_z)   # Linspace of z-coordinates of cors nodes, up to start_ref1
 zindspace = n.arange(len(zspace))
 qspace = qspace[::3] # Keep every third!
@@ -178,8 +204,46 @@ ni_cors = hstack((ni_cors,nodenums))
 ni3d_cors = n.empty((len(rindspace),len(zindspace),len(qindspace)))
 for v in ni_cors:
     ni3d_cors[v[0],v[1],v[2]] = v[3]
-    
+
+######################################
+########## Circumf-refined fine #####
+######################################
+# fine_circumferential nodes
+# Z-coord of every third fine
+zspace = linspace(0, start_ref1, num_node_fine_z)[::3]  # Same as fine, keep every third
+zindspace = n.arange(len(zspace))   # Corresponding indices
+# Want them to have same q-index as corresponding medium nodes
+# Locate where nc_med[:,2]>nc_fine[:,2].max() and find corresponding q index
+rng =  (nc_med[:,2]>nc_fine[:,2].max()) & (ni_med[:,0]==0) & (ni_med[:,1]==0)
+qspace = nc_med[rng, 2]
+qindspace = ni_med[rng,2]
+rindspace = n.arange(num_node_fine_r)
+OD_fine = CalcOD(zspace)
+nc_lowmed = empty((0,3))
+ni_lowmed = empty((0,3),dtype=int)
+for k,z in enumerate(zspace):
+    # Node coords
+    ro = ID+(.5*(dt*tg)*(1+n.cos(-pi*z/start_ref1))) # Here's the imperfection! 
+    r = linspace(ro, OD_fine[k], num_node_fine_r)
+    nc_lowmed = vstack(( nc_lowmed, vstack(map(n.ravel,n.meshgrid(r,z,qspace))).T ))
+    # Node indices
+    nod = asarray([zindspace[k]])
+    ni_lowmed = vstack(( ni_lowmed, vstack(map(n.ravel,n.meshgrid(rindspace,k,qindspace))).T ))
+nodenums = (n.arange(len(nc_lowmed)) + n.max(nodenums))[:,None]+1
+nc_lowmed= hstack((nc_lowmed, nodenums))
+ni_lowmed = hstack((ni_lowmed, nodenums))
+# Now create the 3d-indexed array to store the node numbers
+# Note that this array is LARGER than it ought to be since the q index is not starting at zero
+ni3d_lowmed = n.empty((len(rindspace),len(zindspace),qindspace[-1]+1))*n.nan
+for v in ni_lowmed:
+    ni3d_lowmed[v[0],v[1],v[2]] = v[3]
+
+
+######################################
+########## ref1_q nodes ########## ########## 
+######################################
 # First refine (start_ref1) circumferential (q) nodes
+# Only done above the fine nodes
 z = start_ref1 + elht_med/2
 # locs are those fine nodes that are at the top z-coord of the fine section
 locs = nc_fine[:,1] == n.max(nc_fine[:,1])
@@ -203,6 +267,9 @@ ni3d_ref1_q = n.empty((len(r),len(z),len(q)))
 for v in ni_ref1_q:
     ni3d_ref1_q[v[0],v[1],v[2]] = v[3]
 
+######################################
+########## ref1_midlevel nodes #######
+######################################
 # First refine (start_ref1)  mid-level nodes (btwn the circumf. and the thickness refine)
 # thickness (r) like fine, circumf. (q) like med
 z = start_ref1 + elht_med
@@ -223,6 +290,9 @@ ni3d_ref1_mid = n.empty((len(r),len(z),len(q)))
 for v in ni_ref1_mid:
     ni3d_ref1_mid[v[0],v[1],v[2]] = v[3]
 
+######################################
+########## ref1_thickness nodes ######
+######################################
 # First refine (start_ref1) thickness (th, r-dir'n) nodes
 z = start_ref1 + 3*elht_med/2
 r = n.sort( n.unique( nc_fine[locs,0] )) # locs defined above to account for imperfection
@@ -246,6 +316,9 @@ for v in ni_ref1_r:
     ni3d_ref1_r[v[0],v[1],v[2]] = v[3]
 
 
+######################################
+########## ref2 nodes ################
+######################################
 # Second refine (start_ref2) circumferential (z) nodes
 z = start_ref2 + elht_cors/2
 # med crosses the radius from test sxn to ends, so unique won't work unless we
@@ -270,9 +343,37 @@ ni3d_ref2_q = n.empty((len(r),len(z),len(q)))
 for v in ni_ref2_q:
     ni3d_ref2_q[v[0],v[1],v[2]] = v[3]
 
+
+######################################
+########## reff_z nodes ##############
+######################################
+# Refine fine nodes in z
+# These nodes are the same as fine but missing every third in z
+z = n.sort( n.unique( nc_fine[:,1] ))
+r = n.sort( n.unique( nc_fine[:,0] ))
+q = n.max(nc_fine[:,2]) + n.diff(nc_med[ (ni_med[:,1]==0) & (ni_med[:,0]==0), 2] ).mean()/2
+nc_reff_z = vstack(map(n.ravel,n.meshgrid(r,z,q))).T
+# Indices
+z = n.arange(len(z))
+r = n.arange(len(r))
+q = n.array([0])
+ni_reff_z = vstack(map(n.ravel,n.meshgrid(r,z,q))).T
+# Now take out nodes with z index == 0, 3, 6
+nc_reff_z = nc_reff_z[ ni_reff_z[:,1]%3 != 0, :]
+ni_reff_z = ni_reff_z[ ni_reff_z[:,1]%3 != 0, :]
+# Nodenums
+nodenums = (n.arange(len(nc_reff_z)) + nodenums.max())[:,None]+1
+nc_reff_z = hstack((nc_reff_z,nodenums))
+ni_reff_z = hstack((ni_reff_z,nodenums))
+# 3d index array
+ni3d_reff_z = n.empty((len(r),len(z),len(q)))
+for v in ni_reff_z:
+    ni3d_reff_z[v[0],v[1],v[2]] = v[3]
+
+
 # All node coords
-NC = vstack((nc_fine,nc_med,nc_cors,nc_ref1_q,nc_ref1_mid,nc_ref1_r,nc_ref2_q))
-NI = vstack((ni_fine,ni_med,ni_cors,ni_ref1_q,ni_ref1_mid,ni_ref1_r,ni_ref2_q))
+NC = vstack((nc_fine,nc_med,nc_cors,nc_lowmed,nc_ref1_q,nc_ref1_mid,nc_ref1_r,nc_ref2_q,nc_reff_z))
+NI = vstack((ni_fine,ni_med,ni_cors,nc_lowmed,ni_ref1_q,ni_ref1_mid,ni_ref1_r,ni_ref2_q,ni_reff_z))
 
 '''
 for k in 1:
@@ -302,7 +403,7 @@ for k in 1:
     %matplotlib
     fig = p.figure()
     ax = fig.add_subplot(111,projection='3d')
-    ax.set_xlabel('X',labelpad=30)
+    ax.set_xlabel('R',labelpad=30)
     ax.set_ylabel('$\\theta$',labelpad=30)
     ax.set_zlabel('Z',labelpad=30)
     rgn = ((ni_fine[:,1] == n.max(ni_fine[:,1])) &
@@ -356,7 +457,7 @@ for k in 1:
     %matplotlib
     fig = p.figure()
     ax = fig.add_subplot(111,projection='3d')
-    ax.set_xlabel('X',labelpad=30)
+    ax.set_xlabel('R',labelpad=30)
     ax.set_ylabel('$\\theta$',labelpad=30)
     ax.set_zlabel('Y',labelpad=30)
     rgn = ((ni_med[:,1] == n.max(ni_med[:,1])) &
@@ -393,7 +494,7 @@ for k in 1:
     # Demonstrate node index order
     fig = p.figure()
     ax = fig.add_subplot(111,projection='3d')
-    ax.set_xlabel('X',labelpad=30)
+    ax.set_xlabel('R',labelpad=30)
     ax.set_ylabel('$\\theta$',labelpad=30)
     ax.set_zlabel('Z',labelpad=30)
     rgn = (ni_fine[:,1] <= 1)&(ni_fine[:,2]<=3)
@@ -402,7 +503,80 @@ for k in 1:
     for k,i in enumerate(nc_fine[rgn]):
         ax.text(i[0],i[1],i[2],'{},{},{}'.format(C[k,0],C[k,1],C[k,2]))
     p.tight_layout()
-   
+
+    def plotrange(ax, X, rng=None):
+        if rng is None:
+           rng = n.ones_like(X[:,0], dtype=bool) 
+        l, = ax.plot(X[rng,0],X[rng,2],X[rng,1],'.',alpha=0.5)
+        return l
+    def paneoff(ax):
+        [i.set_pane_color((0,0,0)) for i in [ax.xaxis, ax.yaxis, ax.zaxis]];
+    
+    def indexplot(ax, C, N, rgn, color, **kwargs):
+        for k,i in enumerate(C[rgn]):
+            text = '{:.0f},{:.0f},{:.0f}'.format(N[rgn][k,0],
+                                           N[rgn][k,1],
+                                           N[rgn][k,2])
+            ax.text(i[0],i[2],i[1],text,alpha=0.5,fontsize=10,color=color,**kwargs)
+
+
+    # Demonstrate ref_fz
+    fig = p.figure()
+    ax = fig.add_subplot(111,projection='3d')
+    ax.set_xlabel('R',labelpad=30)
+    ax.set_ylabel('$\\theta$',labelpad=30)
+    ax.set_zlabel('Z',labelpad=30)
+    rng = (nc_fine[:,2]>=angle_fine-7*dq_fine) & (nc_fine[:,1]>=start_ref1-2*elht_fine)
+    plotrange(ax, nc_fine, rng)
+    rng = ((nc_med[:,2]>=angle_fine-7*dq_fine) & (nc_med[:,2]<=angle_fine+3*dq_fine) & 
+           (nc_med[:,0]<=OD_fine.max()) & (ni_med[:,1]<=1) & (nc_med[:,1]<=start_ref1 + 3*elht_med))
+    plotrange(ax, nc_med, rng)
+    rng = nc_reff_z[:,1]>=start_ref1-2*elht_fine
+    plotrange(ax, nc_reff_z,rng)
+    rng = (nc_ref1_q[:,2]>=angle_fine-7*dq_fine) & (nc_ref1_q[:,2]<=angle_fine+3*dq_fine)
+    plotrange(ax, nc_ref1_q, rng)
+    rng = (nc_ref1_mid[:,2]>=angle_fine-7*dq_fine) & (nc_ref1_mid[:,2]<=angle_fine+3*dq_fine)
+    plotrange(ax, nc_ref1_mid, rng)
+ 
+    # Demonstrate ref_fz
+    fig = p.figure()
+    ax = fig.add_subplot(111,projection='3d')
+    ax.set_xlabel('R',labelpad=30)
+    ax.set_ylabel('$\\theta$',labelpad=30)
+    ax.set_zlabel('Z',labelpad=30)
+    paneoff(ax)
+    ax.view_init(5,-5)
+    p.tight_layout()
+    # Fine
+    rng = (ni_fine[:,2]>=ni_fine[:,2].max()-3) & (ni_fine[:,1]>=ni_fine[:,1].max()-3)
+    l1 = plotrange(ax, nc_fine, rng)
+    indexplot(ax, nc_fine, ni_fine, rng, l1.get_color())
+    # ref1_mid
+    rng = ((ni_ref1_mid[:,2] >= (ni_fine[:,2].max()/3)-1) &
+           (ni_ref1_mid[:,2] <= (ni_fine[:,2].max()/3)+1))
+    l2 = plotrange(ax, nc_ref1_mid, rng)
+    indexplot(ax, nc_ref1_mid, ni_ref1_mid, rng, l2.get_color())
+    # ref1_q
+    rng = ((ni_ref1_q[:,2] >= (ni_fine[:,2].max())-3) &
+           (ni_ref1_q[:,2] <= (ni_fine[:,2].max())+3))
+    l3 = plotrange(ax, nc_ref1_q, rng)
+    indexplot(ax, nc_ref1_q, ni_ref1_q, rng, l3.get_color())
+    # reff_z
+    rng = ni_reff_z[:,1]>=ni_reff_z[:,1].max()-2
+    l4 = plotrange(ax, nc_reff_z, rng)
+    indexplot(ax, nc_reff_z, ni_reff_z, rng, l4.get_color())
+
+
+
+
+    rng = nc_reff_z[:,1]>=start_ref1-2*elht_fine
+    plotrange(ax, nc_reff_z,rng)
+    rng = (nc_ref1_q[:,2]>=angle_fine-7*dq_fine) & (nc_ref1_q[:,2]<=angle_fine+3*dq_fine)
+    plotrange(ax, nc_ref1_q, rng)
+    rng = (nc_ref1_mid[:,2]>=angle_fine-7*dq_fine) & (nc_ref1_mid[:,2]<=angle_fine+3*dq_fine)
+    plotrange(ax, nc_ref1_mid, rng)
+    p.tight_layout()   p.tight_layout()
+
 for k in [1]:
     # Plot from ID looking out (x == 0)
     rgn = NI[:,0] == 0
@@ -462,6 +636,7 @@ for k in [1]:
     ax.set_xlabel('x')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
+    p.tight_layout()
     p.show()
 
     p.figure()
@@ -475,7 +650,8 @@ nodelists = ['nc_cors', 'nc_fine', 'nc_med',
             'ni_med', 'ni_ref1_mid', 'ni_ref1_r',
             'ni_ref1_q', 'ni_ref2_q', 'NC','NI',
             'ni3d_fine', 'ni3d_med', 'ni3d_cors', 'ni3d_ref1_mid', 
-            'ni3d_ref1_r', 'ni3d_ref1_q', 'ni3d_ref2_q']
+            'ni3d_ref1_r', 'ni3d_ref1_q', 'ni3d_ref2_q',
+            'nc_lowmed', 'ni_lowmed', 'nc_reff_z', 'ni_reff_z']
  
  
 for k, F in enumerate(nodelists):
