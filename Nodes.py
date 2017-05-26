@@ -150,7 +150,7 @@ zspace = linspace(start_med_z, start_ref2, num_node_med_z)
 rng_lo =  zspace < Lg
 rng_hi = zspace > coord_end_chamf
 rng_med = ~(rng_lo | rng_hi)  #This is where we refine
-ref_fact = 3
+ref_fact = 18/num_el_fine_r
 zspace = hstack(( zspace[rng_lo],
                   linspace(Lg, coord_end_chamf, ref_fact*rng_med.sum()-(ref_fact-1)),
                   zspace[rng_hi]

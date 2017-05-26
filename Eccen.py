@@ -27,6 +27,8 @@ try:
     R = float(argv[3])
 except IndexError:
     ecc = 0
+    Lg = 4/2
+    R = .125
 
 # [0] rho, [1]Z, [2]Theta, [3] NodeNum
 NC = n.load('./ConstructionFiles/nc_all.npy')
