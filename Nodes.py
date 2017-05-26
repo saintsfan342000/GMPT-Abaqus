@@ -373,8 +373,8 @@ for v in ni_reff_z:
 
 
 # All node coords
-NC = vstack((nc_fine,nc_med,nc_cors,nc_lowmed,nc_ref1_q,nc_ref1_mid,nc_ref1_r,nc_ref2_q,nc_reff_z))
-NI = vstack((ni_fine,ni_med,ni_cors,nc_lowmed,ni_ref1_q,ni_ref1_mid,ni_ref1_r,ni_ref2_q,ni_reff_z))
+NC = vstack((nc_fine, nc_med, nc_cors, nc_lowmed, nc_ref1_q, nc_ref1_mid, nc_ref1_r, nc_ref2_q, nc_reff_z))
+NI = vstack((ni_fine, ni_med, ni_cors, ni_lowmed, ni_ref1_q, ni_ref1_mid, ni_ref1_r, ni_ref2_q, ni_reff_z))
 
 '''
 for k in 1:
@@ -571,11 +571,6 @@ for k in 1:
     l5 = plotrange(ax, nc_lowmed, rng)
     indexplot(ax, nc_lowmed, ni_lowmed, rng, l5.get_color())
     p.tight_layout()
-
-
-
-
-
 
 for k in [1]:
     # Plot from ID looking out (x == 0)

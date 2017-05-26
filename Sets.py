@@ -15,14 +15,16 @@ nodelist = ['nc_cors', 'nc_fine', 'nc_med',
             'nc_ref1_mid', 'nc_ref1_r', 'nc_ref1_q',
             'nc_ref2_q', 'ni_cors', 'ni_fine',
             'ni_med', 'ni_ref1_mid', 'ni_ref1_r',
-            'ni_ref1_q', 'ni_ref2_q', 'nc_all', 'ni_all']
+            'ni_ref1_q', 'ni_ref2_q', 'nc_lowmed',
+            'ni_lowmed', 'nc_reff_z', 'ni_reff_z',
+            'nc_all', 'ni_all']
 
 for k,name in enumerate(nodelist):
     exec('{} = n.load("./ConstructionFiles/{}.npy")'.format(name,name))
 
 E = n.load('./ConstructionFiles/abaqus_elements.npy')
 
-fid = open('./ConstructionFiles/abaqus_sets.txt','w')   
+fid = open('./ConstructionFiles/abaqus_sets.txt','w')
 
 ################
 ## Node sets ###
@@ -39,11 +41,18 @@ for i,no in enumerate(nodenums):
     else:
         fid.write('{:.0f}, '.format(no))
 
-# nset BottomSurface        
+# nset BottomSurface
 # A set of all nodes on the bottom surface of the model
 fid.write('*nset, nset=NS_BOTTOMSURFACE\n')
 rng = (ni_fine[:,1] == 0 )
 nodenums = compress(rng, ni_fine[:,3])
+for i,no in enumerate(nodenums):
+    if ((i+1)%16 == 0) or (i == len(nodenums)-1):
+        fid.write('{:.0f}\n'.format(no))
+    else:
+        fid.write('{:.0f}, '.format(no))
+rng = (ni_lowmed[:,1] == 0 )
+nodenums = compress(rng, ni_lowmed[:,3])
 for i,no in enumerate(nodenums):
     if ((i+1)%16 == 0) or (i == len(nodenums)-1):
         fid.write('{:.0f}\n'.format(no))
@@ -98,33 +107,22 @@ for i,no in enumerate(nodenums):
 # A set of nodes on the two edges if we've done half-ring
 if not fullring:
     fid.write('*nset, nset=NS_AXIALSYMM\n')
-    nodenums = n.empty(0)
-    rng = (ni_fine[:,2] == ni_fine[:,2].min()) | (ni_fine[:,2] == ni_fine[:,2].max())
-    nodenums = hstack(( nodenums, ni_fine[rng,3] ))
-    rng = (ni_med[:,2] == ni_med[:,2].min()) | (ni_med[:,2] == ni_med[:,2].max())
-    nodenums = hstack(( nodenums, ni_med[rng,3] ))
-    rng = (ni_cors[:,2] == ni_cors[:,2].min()) | (ni_cors[:,2] == ni_cors[:,2].max())
-    nodenums = hstack(( nodenums, ni_cors[rng,3] ))
-    rng = (ni_ref1_mid[:,2] == ni_ref1_mid[:,2].min()) | (ni_ref1_mid[:,2] == ni_ref1_mid[:,2].max())
-    nodenums = hstack(( nodenums, ni_ref1_mid[rng,3] ))
-    rng = (ni_ref1_r[:,2] == ni_ref1_r[:,2].min()) | (ni_ref1_r[:,2] == ni_ref1_r[:,2].max())
-    nodenums = hstack(( nodenums, ni_ref1_r[rng,3] ))
-    rng = (ni_ref1_mid[:,2] == ni_ref1_mid[:,2].min()) | (ni_ref1_mid[:,2] == ni_ref1_mid[:,2].max())
-    nodenums = hstack(( nodenums, ni_ref1_mid[rng,3] ))
+    rng = (nc_all[:,2]==0) | (nc_all[:,2] == nc_all[:,2].max())
+    nodenums = nc_all[rng,3]
     for i,no in enumerate(nodenums):
         if ((i+1)%16 == 0) or (i == len(nodenums)-1):
             fid.write('{:.0f}\n'.format(no))
         else:
             fid.write('{:.0f}, '.format(no))
 
-    
+
 ################
 # Element sets #
 ################
 
 # Elset_q
 fid.write('*elset, elset=ES_Z\n')
-# A line of elements on the OD running up the test section 
+# A line of elements on the OD running up the test section
 # Place it on the thinnest wall-thickness area (y = 0, x = OD/2)
 # We'll need to grab from fine, all ref1s, and med
 # This could need modification if I change the coordinate of ref1
@@ -142,20 +140,20 @@ nodenums = compress(rng, ni_ref1_mid[:,3])
 rng = (ni_ref1_q[:,0] == ni_ref1_q[:,0].max()) & (ni_ref1_q[:,2] == 1)
 #nodenums = hstack(( nodenums, compress(rng, ni_ref1_mid[:,3]) ))
 nodenums2 = compress(rng, ni_ref1_q[:,3])
-rng = (in1d(E[:,3],nodenums)) & (in1d(E[:,2],nodenums2)) 
+rng = (in1d(E[:,3],nodenums)) & (in1d(E[:,2],nodenums2))
 elnums = hstack(( elnums, E[ rng, 0] ))
 # Med
 rng = (ni_med[:,0] == ni_med[:,0].max()) & (ni_med[:,2] == 0) & (nc_med[:,1]<=Lg)
 nodenums = compress(rng, ni_med[:,3])
 nodenums2 = nodenums + 1
-rng = (in1d(E[:,3],nodenums)) & (in1d(E[:,2],nodenums2)) 
+rng = (in1d(E[:,3],nodenums)) & (in1d(E[:,2],nodenums2))
 elnums = hstack(( elnums, E[ rng, 0] ))
 for i,el in enumerate(elnums):
     if ((i+1)%16 == 0) or (i == len(elnums)-1):
         fid.write('{:.0f}\n'.format(el))
     else:
         fid.write('{:.0f}, '.format(el))
-        
+
 # Elset_thickness
 fid.write('*elset, elset=ES_THICKNESS\n')
 # A line of elements on the sym-plane running thru-thickness
@@ -170,16 +168,16 @@ for i,el in enumerate(elnums):
         fid.write('{:.0f}\n'.format(el))
     else:
         fid.write('{:.0f}, '.format(el))
-        
+
 # Elset_thickness_back
 fid.write('*elset, elset=ES_THICKNESS_BACK\n')
 # A line of elements on the sym-plane running thru-thickness
 # Places along THICKNESS wall-thickness area (y = 0, x < 0)
 # z-index = 1, and theta-coord closest to pi
-rng = ((ni_fine[:,1] == 1) & 
-        (n.abs(nc_fine[:,2]-pi) == n.abs(nc_fine[:,2]-pi).min()) )
-nodenums = compress(rng, ni_fine[:,3])
-nodenums2 = nodenums - 1 # Minus to accomadate halfe model!
+rng = ((ni_lowmed[:,1] == 1) &
+        (n.abs(nc_lowmed[:,2]-pi) == n.abs(nc_lowmed[:,2]-pi).min()) )
+nodenums = compress(rng, ni_lowmed[:,3])
+nodenums2 = nodenums - 1 # Minus to accommodate half model!
 # Order of 2 and 3 is switched b/c nodenums2 is minus 1
 rng = (in1d(E[:,2],nodenums)) & (in1d(E[:,3],nodenums2))
 elnums = E[rng, 0]
@@ -194,10 +192,10 @@ fid.write('*elset, elset=ES_THICKNESS_SIDE\n')
 # A line of elements on the sym-plane running thru-thickness
 # Placed along  wall-thickness area (y = ymax, x = 0)
 # z-index = 1, and theta-coord closest to pi/2
-rng = ((ni_fine[:,1] == 1) & 
-        (n.abs(nc_fine[:,2]-pi/2) == n.abs(nc_fine[:,2]-pi/2).min()) )
-nodenums = compress(rng, ni_fine[:,3])
-nodenums2 = nodenums + 1 
+rng = ((ni_lowmed[:,1] == 1) &
+        (n.abs(nc_lowmed[:,2]-pi/2) == n.abs(nc_lowmed[:,2]-pi/2).min()) )
+nodenums = compress(rng, ni_lowmed[:,3])
+nodenums2 = nodenums + 1
 rng = (in1d(E[:,3],nodenums)) & (in1d(E[:,2],nodenums2))
 elnums = E[rng, 0]
 for i,el in enumerate(elnums):
@@ -205,6 +203,8 @@ for i,el in enumerate(elnums):
         fid.write('{:.0f}\n'.format(el))
     else:
         fid.write('{:.0f}, '.format(el))
+
+
 # Elset_wholeid
 fid.write('*elset, elset=ES_WHOLEID\n')
 # Every element with a face on the ID
