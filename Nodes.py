@@ -214,6 +214,7 @@ zspace = linspace(0, start_ref1, num_node_fine_z)[::3]  # Same as fine, keep eve
 zindspace = n.arange(len(zspace))   # Corresponding indices
 # Want them to have same q-index as corresponding medium nodes
 # Locate where nc_med[:,2]>nc_fine[:,2].max() and find corresponding q index
+# This starting index can be recovered with n.nonzero(~n.isnan(ni3d_lowmed[0,0,:]))[0][0]
 rng =  (nc_med[:,2]>nc_fine[:,2].max()) & (ni_med[:,0]==0) & (ni_med[:,1]==0)
 qspace = nc_med[rng, 2]
 qindspace = ni_med[rng,2]
@@ -507,7 +508,7 @@ for k in 1:
     def plotrange(ax, X, rng=None):
         if rng is None:
            rng = n.ones_like(X[:,0], dtype=bool) 
-        l, = ax.plot(X[rng,0],X[rng,2],X[rng,1],'.',alpha=0.5)
+        l, = ax.plot(X[rng,0],X[rng,2],X[rng,1],'.')
         return l
     def paneoff(ax):
         [i.set_pane_color((0,0,0)) for i in [ax.xaxis, ax.yaxis, ax.zaxis]];
@@ -517,7 +518,7 @@ for k in 1:
             text = '{:.0f},{:.0f},{:.0f}'.format(N[rgn][k,0],
                                            N[rgn][k,1],
                                            N[rgn][k,2])
-            ax.text(i[0],i[2],i[1],text,alpha=0.5,fontsize=10,color=color,**kwargs)
+            ax.text(i[0],i[2],i[1],text,fontsize=8,color=color,**kwargs)
 
 
     # Demonstrate ref_fz
@@ -565,17 +566,16 @@ for k in 1:
     rng = ni_reff_z[:,1]>=ni_reff_z[:,1].max()-2
     l4 = plotrange(ax, nc_reff_z, rng)
     indexplot(ax, nc_reff_z, ni_reff_z, rng, l4.get_color())
+    # lowmed
+    rng = (ni_lowmed[:,2]==ni_lowmed[:,2].min()) & (ni_lowmed[:,1]>=ni_lowmed[-1,1]-1)
+    l5 = plotrange(ax, nc_lowmed, rng)
+    indexplot(ax, nc_lowmed, ni_lowmed, rng, l5.get_color())
+    p.tight_layout()
 
 
 
 
-    rng = nc_reff_z[:,1]>=start_ref1-2*elht_fine
-    plotrange(ax, nc_reff_z,rng)
-    rng = (nc_ref1_q[:,2]>=angle_fine-7*dq_fine) & (nc_ref1_q[:,2]<=angle_fine+3*dq_fine)
-    plotrange(ax, nc_ref1_q, rng)
-    rng = (nc_ref1_mid[:,2]>=angle_fine-7*dq_fine) & (nc_ref1_mid[:,2]<=angle_fine+3*dq_fine)
-    plotrange(ax, nc_ref1_mid, rng)
-    p.tight_layout()   p.tight_layout()
+
 
 for k in [1]:
     # Plot from ID looking out (x == 0)
@@ -651,22 +651,18 @@ nodelists = ['nc_cors', 'nc_fine', 'nc_med',
             'ni_ref1_q', 'ni_ref2_q', 'NC','NI',
             'ni3d_fine', 'ni3d_med', 'ni3d_cors', 'ni3d_ref1_mid', 
             'ni3d_ref1_r', 'ni3d_ref1_q', 'ni3d_ref2_q',
-            'nc_lowmed', 'ni_lowmed', 'nc_reff_z', 'ni_reff_z']
- 
+            'nc_lowmed', 'ni_lowmed', 'ni3d_lowmed',
+            'nc_reff_z', 'ni_reff_z', 'ni3d_reff_z']
  
 for k, F in enumerate(nodelists):
-    if F.rfind('nc') == 0:
-        n.save('./ConstructionFiles/{}'.format(F), eval(F))
-    elif F.rfind('ni') == 0:
-        n.save('./ConstructionFiles/{}'.format(F), eval(F))
-    elif F.rfind('NC') == 0:
-        #n.savetxt('./ConstructionFiles/{}.dat'.format('node_coords_all'),X=eval(F),fmt = '%.12f,%.12f,%.12f,%.0f')
-        n.save('./ConstructionFiles/{}'.format('nc_all'),eval(F)) 
+    if F.rfind('ni3d') == 0:
+        n.save('./ConstructionFiles/{}'.format(F), eval(F).astype(int))
     elif F.rfind('NI') == 0:
         #n.savetxt('./ConstructionFiles/{}.dat'.format('node_indices_all'),X=eval(F),fmt = '%.0f,%.0f,%.0f,%.0f')
         n.save('./ConstructionFiles/{}'.format('ni_all'),eval(F).astype(int)) 
-    elif F.rfind('ni3d_') == 0:
-        n.save('./ConstructionFiles/{}'.format(F),eval(F).astype(int)) 
+    elif F.rfind('NC') == 0:
+        #n.savetxt('./ConstructionFiles/{}.dat'.format('node_coords_all'),X=eval(F),fmt = '%.12f,%.12f,%.12f,%.0f')
+        n.save('./ConstructionFiles/{}'.format('nc_all'),eval(F)) 
     elif F.rfind('abaqus') == 5:
         '''
         # node list for abaqus input file
@@ -677,4 +673,4 @@ for k, F in enumerate(nodelists):
         '''
         pass
     else:
-        raise('Something bad in nodelist')
+        n.save('./ConstructionFiles/{}'.format(F), eval(F))
