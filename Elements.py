@@ -502,7 +502,7 @@ for k in range(num_el_med_q):
                          ni3d_med[i+1,j_med,k+1],
                          ni3d_med[i,j_med,k+1]
                         ]
-                elcon_ref2[row,:-1] = nodes
+            elcon_ref2[row,:-1] = nodes
             row+=1
     # In a separate loop, connect ref2_q up to ref2_mid
     if k%3 == 0:
