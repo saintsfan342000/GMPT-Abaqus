@@ -76,7 +76,7 @@ f.eztext(ax1, newstr, 'tl')
 f.myax(ax1)
 
 # Ax sts vs ax stn
-fig2, ax21, ax22 = f.make12()
+fig2, ax21, ax22 = f.make21()
 ax21.plot(d[4],d[2],'b', label='$\\delta/\\mathsf{L}$')
 ax21.plot(d[11],d[2],'r', label='$e_\\mathsf{x}$')
 for q,j in enumerate(incs):

@@ -238,13 +238,14 @@ fid.write('INSTANCE.RP_CAV, 1, 6\n')
 fid.write('****************************************\n')
 fid.write('*************** STEP *******************\n')
 fid.write('****************************************\n')
-fid.write('*step, name=STEP, nlgeom=yes, inc=200\n')
+fid.write('*step, name=STEP, nlgeom=yes, inc=1000\n')
 if n.isnan(alpha):
     # Pure tension case, apply only U3
     # NOT TESTED
     fid.write('*static\n' +
               '0.005, 1., 1e-05, .005\n'
               )
+    fid.write('**[1]Initial incr, [2]Total step, [3]Min incr, [4]Max incr\n')
     fid.write('*boundary\n' + 
               'INSTANCE.RP_TOP, 3, 3, 0.3\n'
               )
@@ -257,6 +258,7 @@ elif n.isclose(alpha, 0.5):
     fid.write('*static\n' +
               '0.0025, 1., 1e-06, .0025\n'
               )
+    fid.write('**[1]Initial incr, [2]Total step, [3]Min incr, [4]Max incr\n')
     fid.write('*fluid flux\n' + 
               'INSTANCE.RP_CAV, {:.3f}\n'.format(vol/3)
               )
@@ -265,7 +267,7 @@ else:
     # NOT TESTED
     # [1]Inital arc len, [2]total step, [3]minimum increm, [4]max increm (no max if blank), [5]Max LPF, [6]Node whose disp is monitored, [7]DOF, [8]Max Disp
     fid.write('*static, riks\n' +
-            '0.0005, 1.0, 1e-05, .0005, .0022, ASSEMBLY.RIKSMON, {:.0f}, {:.6f}\n'.format(riks_DOF_num, riks_DOF_val)
+            '0.0005, 1.0, 1e-15, , .0022, ASSEMBLY.RIKSMON, {:.0f}, {:.6f}\n'.format(riks_DOF_num, riks_DOF_val)
               )
     fid.write('**[1]Inital arc len, [2]total step, [3]minimum increm, [4]max increm (no max if blank),' +
               ' [5]Max LPF, [6]Node whose disp is monitored, [7]DOF, [8]Max Disp\n')
@@ -277,7 +279,11 @@ else:
     fid.write('*boundary\n' + 
               'INSTANCE.RP_CAV, 8, 8, {:.5f}\n'.format(press)
               )
-              
+# Solver controls
+fid.write('** Increase number of increment cutbacks permitted\n')
+fid.write('*controls, parameters=time incrementation\n')
+fid.write(' , , , , , , , 10, , , , ,\n')           
+
 # field output
 fid.write('*output, field, frequency=1\n')
 fid.write('** COORn must be called under history output, but COORD can be called in field\n')
