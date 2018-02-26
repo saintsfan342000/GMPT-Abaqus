@@ -37,8 +37,8 @@ else:
     ### Nodes
     println()
     print('Generating nodes.')
-    os.system( ('python Nodes.py {:s} {:s} {:s}' +
-                '{:s} {:s} {:s}' +
+    os.system( ('python Nodes.py {:s} {:s} {:s} ' +
+                '{:s} {:s} {:s} ' +
                 '{:s} {:s}').format(
                 Lg, Ltop, ODtop, 
                 ID, tg, R, 

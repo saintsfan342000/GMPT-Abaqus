@@ -34,6 +34,7 @@ try:
     num_el_fine_r = int(num_el_fine_r)  # Num elements thru the test section thickness
     dt = float(dt) # Specify dt/tg.  
 except:
+    print('*** Nodes.py ***\n*** argv error ***\n')
     Lg = 4 / 2
     Ltop = 0.5  # Length of thick section above radius/chamf
     ODtop = 1.9685/2    # Radius of thick section

@@ -26,6 +26,7 @@ try:
     Lg = float(argv[2])
     R = float(argv[3])
 except IndexError:
+    print('***Eccen.py: ***\n*** argv err ***\n')
     ecc = 0
     Lg = 4/2
     R = .125
