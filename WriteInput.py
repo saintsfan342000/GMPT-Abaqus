@@ -11,9 +11,9 @@ Writes the input file
 '''
 
 fullring = False
-UAMP = False
+UAMP = True
 
-if len(argv[1:]) == 10:
+if len(argv[1:]) == 11:
     expt = int(argv[1])
     inpname = argv[2]
     constit = argv[3]
@@ -24,14 +24,14 @@ if len(argv[1:]) == 10:
     R = float(argv[8])
     t = float(argv[9])
     alpha = float(argv[10])
+    cdt = float(argv[11])
 else:
-    raise ValueError('Wrong number of args. Require 10')
+    raise ValueError('Wrong number of args. Require 11')
 
 # Make sure we have a valid constitutive model
 if not( constit in ['vm', 'VM', 'H8', 'h8', 'anis', 'ANIS']):
     raise ValueError("Bad constit given '{}'.\nMust be 'vm', 'VM', 'H8', 'anis', 'ANIS'.".format(constit))
-
-
+    
 press = 1400  # This is 2.8 ksi * 500
 # The *500 is b/c abaqus behaves odd when the cloads are O(1) 
 # The behavior is normal when the cloads are O(1000)
@@ -57,7 +57,8 @@ fid =  open('{}.inp'.format(inpname),'w')
 fid.write('** GMPT={}\n'.format(expt))
 fid.write('** alpha = {:.3f}\n'.format(alpha))
 fid.write('** num_el_fine_th = {}\n'.format(num_el_fine_th))
-fid.write('** Imperfection = {} #Not percentage\n'.format(dt))
+fid.write('** Axial Imperfection = {} #Not percentage\n'.format(dt))
+fid.write('** Circumferential Imperfection = {} #Not percentage\n'.format(cdt))
 fid.write('** Eccentricity = {} #Not percentage\n'.format(ecc))
 fid.write('** Rm = {:.4f}\n'.format(R))
 fid.write('** tg = {:.4f}\n'.format(t))

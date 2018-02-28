@@ -9,7 +9,8 @@ Generates the node sets and element sets.
 
 fullring = False
 
-Lg = float(argv[1])
+cdt = float(argv[1])
+Lg = 2
 
 nodelist = ['nc_cors', 'nc_fine', 'nc_med',
             'nc_ref1_mid', 'nc_ref1_r', 'nc_ref1_q',
@@ -114,7 +115,18 @@ if not fullring:
             fid.write('{:.0f}\n'.format(no))
         else:
             fid.write('{:.0f}, '.format(no))
-
+if cdt > 0:
+    fid.write('*nset, nset=NS_CIRCIMPERF\n')
+    # Get the ID and thickness
+    ID = n.min(nc_med[:,0])
+    tg = n.max(nc_fine[:,0]) - ID 
+    rng = (ni_all[:,0]==0) & (nc_all[:,2] <= 2*tg/ID) & (nc_all[:,1] <= ID+tg/2)
+    nodenums = nc_all[rng,3]
+    for i,no in enumerate(nodenums):
+        if ((i+1)%16 == 0) or (i == len(nodenums)-1):
+            fid.write('{:.0f}\n'.format(no))
+        else:
+            fid.write('{:.0f}, '.format(no))
 
 ################
 # Element sets #

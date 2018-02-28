@@ -28,7 +28,7 @@ u = n.hstack((u,uneg))
 u = u[:, u[0].argsort() ]
 
 loc = n.argmax(d[1])
-d = d[:,:loc+20]
+#d = d[:,:loc+20]
 
 alpha, blank = n.polyfit(d[3],d[2],1)
 annotstr = '{}\n$\\alpha$ = {:.2f}'.format(name,alpha)

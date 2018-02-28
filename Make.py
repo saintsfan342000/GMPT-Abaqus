@@ -6,18 +6,25 @@ from sys import argv
 def println():
     print('-----------------------------------------------------------')
 
-if len(argv) != 7:
+if len(argv) < 7:
     println()
     print('Requires 6 command-line arguments.')
     print('[1] Experiment no. whose geometry and loading you\'re modeling.')
     print('[2] Number of elements thru-thickness in the test section')
-    print('[3] Imperfection magnitude (as fraction, not percentage)')
+    print('[3] Axial Imperfection magnitude (as fraction, not percentage)')
     print('[4] Eccentricity.  Give a number, or give "auto" and the geometry will match that of the test specimen.')
     print('[5] Input file name')
     print('[6] Constitutive model: "vm", "h8", or "anis"')
+    print('[7] (Optional) Circumferential Imperfection (as fraction, not pctg)')
     println()
 else:
-    argv, expt, num_el_fine_th, dt, eccen, inpname, constit = argv
+    if len(argv) == 7:
+        argv, expt, num_el_fine_th, dt, eccen, inpname, constit = argv
+        cdt = 0
+    elif len(argv) == 8:
+        argv, expt, num_el_fine_th, dt, eccen, inpname, constit, cdt = argv
+    else:
+        raise IndexError('Too many args given!')
     # expt, num_el_fine_th, dt, eccen, inpname, constit = '1', '3', '0', 'auto', 'blah', 'vm'  # For copying/debugging purposes
     d = n.genfromtxt('ExptSummary.dat', delimiter=',', dtype=str)
     # [0]Expt No., [1]Mon.Day, [2]Material, [3]Tube No., [4]Alpha, [5]Alpha-True, [6]Mean Radius, [7]Mean Thickness, [8]Eccentricity (pct)
@@ -54,13 +61,13 @@ else:
     ### Sets
     println()
     print('Generating node and element sets.')
-    os.system('python Sets.py {}'.format(Lg))
+    os.system('python Sets.py {}'.format(cdt))
     print('Done.')
 
     ### Eccentricity
     println()
     print('Generating Eccentricity.')
-    os.system('python Eccen.py {} {} {}'.format(eccen, Lg, R))
+    os.system('python Eccen.py {} {} {} {}'.format(eccen, Lg, R, cdt))
     print('Done.')
 
     ### Write Input
@@ -69,9 +76,9 @@ else:
     os.system(('python WriteInput.py {:s} {:s} {:s} ' +
                 '{:s} {:s} {:s} ' + 
                 '{:s} {:s} {:s} ' +
-                '{:s}').format(
+                '{:s} {}').format(
               expt, inpname, constit, 
               num_el_fine_th, dt, str(eccen), 
               ID, Rm, tg,
-              alpha ))
+              alpha, cdt ))
     print('Done!')

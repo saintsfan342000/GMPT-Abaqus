@@ -39,6 +39,9 @@ h_inst = h_odb.rootAssembly.instances[ h_odb.rootAssembly.instances.keys()[0] ]
 h_step = h_odb.steps[ h_odb.steps.keys()[0] ]
 h_All_Frames = h_step.frames
 num_incs = len(h_All_Frames)
+frameNos = np.empty(num_incs, dtype=int)
+for k,frame in enumerate(h_All_Frames):
+    frameNos[k] = frame.frameId
 
 h_nset_rp_top = h_inst.nodeSets[nset_rp_top]
 h_nset_dr_lo = h_inst.nodeSets[nset_dr_lo]
@@ -106,11 +109,18 @@ for i in range(num_incs):
     #for j in range(numnode_prof):
     #    print h_nset_urprof.nodes[j].label, h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_urprof).values[j].nodeLabel
 
-    
+
+# Now get history data. 
+z = 0
 for k,i in enumerate(h_histrgn.historyOutputs['PCAV'].data):
-    P[k] = i[1]
+    if k in frameNos:
+        P[z] = i[1]
+        z+=1
+z = 0
 for k,i in enumerate(h_histrgn.historyOutputs['CVOL'].data):
-    V[k] = i[1]
+    if k in frameNos:
+        V[z] = i[1]
+        z+=1
 
 h_odb.close()
 
@@ -151,20 +161,4 @@ hl = '#1st line: Undef Z-coord of nodes\n'
 hl += '#2nd line: Undef r-coord of nodes\n'
 hl += '#3+nth line: nth incremend Ur of node in column'
 headerline(fname,hl)
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
+
