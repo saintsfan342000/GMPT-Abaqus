@@ -5,6 +5,10 @@ from sys import argv
 
 '''
 Generates the node sets and element sets.
+Recall nc order:
+r, [:,0] = thru thickness, or radial coordinate
+z, [:,1] = Axial coord
+q, [:,2] = Angle coordinate theta
 '''
 
 fullring = False
@@ -69,7 +73,7 @@ rng = ( (ni_cors[:,1] == 0 ) & (ni_cors[:,2] == 0 ) &
         (ni_cors[:,0] == ni_cors[:,0].max()) )
 nodenums = compress(rng, ni_cors[:,3])
 if len(nodenums) != 1:
-    raise ValueError('Seeking a single node for NS_DISPROT_LO, but len(nodenums)!=1')
+    raise ValueError('Seeking a single node for NS_DISPROT_HI, but len(nodenums)!=1')
 else:
     fid.write('{}\n'.format(nodenums[0]))
 
@@ -132,7 +136,7 @@ if cdt > 0:
 # Element sets #
 ################
 
-# Elset_q
+# Elset_Z
 fid.write('*elset, elset=ES_Z\n')
 # A line of elements on the OD running up the test section
 # Place it on the thinnest wall-thickness area (y = 0, x = OD/2)
@@ -216,6 +220,32 @@ for i,el in enumerate(elnums):
     else:
         fid.write('{:.0f}, '.format(el))
 
+# Elset_AnalZone: 
+# All OD elements in a region comparable to the zone I analyzed for calibration
+fid.write('*elset, elset=ES_ANALZONE\n')
+# All elements from 0 to 0.5 inches in Z, and theta<75 deg.  
+# Must look in ni_fine and ni_lowmed
+rng = ((ni_fine[:,0] == ni_fine[:,0].max()) & 
+        (nc_fine[:,2]<=75*n.pi/180) &
+        (nc_fine[:,1]<=0.5)
+       )
+nodenums = compress(rng, ni_fine[:,3])
+nodenums2 = nodenums + 1
+rng = (in1d(E[:,3],nodenums)) & (in1d(E[:,2],nodenums2))
+elnums = E[rng, 0]
+rng = ((ni_lowmed[:,0] == ni_lowmed[:,0].max()) & 
+        (nc_lowmed[:,2]<=40*n.pi/180) &
+        (nc_lowmed[:,1]<=0.5)
+       )
+nodenums = compress(rng, ni_lowmed[:,3])
+nodenums2 = nodenums + 1
+rng = (in1d(E[:,3],nodenums)) & (in1d(E[:,2],nodenums2))
+elnums = hstack((elnums, E[rng,0]))
+for i,el in enumerate(elnums):
+    if ((i+1)%16 == 0) or (i == len(elnums)-1):
+        fid.write('{:.0f}\n'.format(el))
+    else:
+        fid.write('{:.0f}, '.format(el))
 
 # Elset_wholeid
 fid.write('*elset, elset=ES_WHOLEID\n')

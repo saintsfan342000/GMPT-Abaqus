@@ -33,13 +33,6 @@ loc = n.argmax(d[1])
 alpha, blank = n.polyfit(d[3],d[2],1)
 annotstr = '{}\n$\\alpha$ = {:.2f}'.format(name,alpha)
 
-Pmax = d[1,-1]
-Pspace = n.linspace(0,Pmax,5)[1:]
-incs = n.empty((len(Pspace)))
-for q,j in enumerate(Pspace):
-    incs[q] = n.nonzero(d[1]>=j)[0][0]
-incs = incs.astype(int)
-
 incs = n.linspace(0,loc,5)[1:].astype(int)
 incs = n.hstack((incs,len(d[0])-1))
 

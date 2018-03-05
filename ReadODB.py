@@ -18,8 +18,25 @@ pi = np.pi
 job = argv[1]
 half = True
 
-t = 0.0500
-R = 0.8391
+# Get the true R and t from ExptSummary
+# For generality, recursively look for the ExpSumm.dat file
+# If we don't find it, then use defaults
+relpath = '.'
+for i in range(10):
+    if not os.path.exists('%s/ExptSummary.dat'%(relpath)):
+        relpath = '../' + relpath
+    else:
+        key = np.genfromtxt('%s/ExptSummary.dat'%(relpath), delimiter=',')
+        x = int(job.split('-')[-1])
+        key = key[key[:,0] == x].ravel()
+        R, t = key[6:8]
+        break
+else:
+    t = 0.0500
+    R = 0.8391
+    print 'ExptSummart.dat not located. Using default R and t values'
+
+
 
 if not os.path.isfile(job + '.odb'):
     raise ValueError('The specified job name "%s" does not exist.'%(job))
@@ -29,7 +46,7 @@ nset_rp_bot = 'NS_RPBOT'
 nset_dr_lo = 'NS_DISPROT_LO'
 nset_dr_back = 'NS_DISPROT_LO_BACK'
 nset_radcont = 'NS_RADIALCONTRACTION'
-elset_th_front = 'ES_THICKNESS'
+elset_th_front = 'ES_ANALZONE'
 elset_th_back = 'ES_THICKNESS_BACK'
 elset_th_side = 'ES_THICKNESS_SIDE'
 

@@ -28,6 +28,9 @@ if len(argv[1:]) == 11:
 else:
     raise ValueError('Wrong number of args. Require 11')
 
+if n.isclose(alpha, 0.5):
+    UAMP=False
+
 # Make sure we have a valid constitutive model
 if not( constit in ['vm', 'VM', 'H8', 'h8', 'anis', 'ANIS']):
     raise ValueError("Bad constit given '{}'.\nMust be 'vm', 'VM', 'H8', 'anis', 'ANIS'.".format(constit))
@@ -59,7 +62,7 @@ fid.write('** alpha = {:.3f}\n'.format(alpha))
 fid.write('** num_el_fine_th = {}\n'.format(num_el_fine_th))
 fid.write('** Axial Imperfection = {} #Not percentage\n'.format(dt))
 fid.write('** Circumferential Imperfection = {} #Not percentage\n'.format(cdt))
-fid.write('** Eccentricity = {} #Not percentage\n'.format(ecc))
+fid.write('** Eccentricity = {:.2f} # Percentage\n'.format(100*ecc))
 fid.write('** Rm = {:.4f}\n'.format(R))
 fid.write('** tg = {:.4f}\n'.format(t))
 fid.write('** ID = {}\n'.format(ID))
@@ -197,7 +200,7 @@ fid.write('***************  MATERIAL **************\n')
 fid.write('****************************************\n')
 
 if constit in ['vm', 'VM']:
-    with open('./ConstructionFiles/abaqus_material_VM_TT20.txt','r') as matfid:
+    with open('./ConstructionFiles/abaqus_material_VM.txt','r') as matfid:
         mat = matfid.read()
         fid.write(mat)
         matfid.close()
@@ -255,7 +258,12 @@ fid.write('*************** STEP *******************\n')
 fid.write('****************************************\n')
 if UAMP:
     fid.write('*amplitude, name=FORCE_AMP, Definition=User, Variables=1\n')
-fid.write('*step, name=STEP, nlgeom=yes, inc=1000\n')
+
+if constit in ['H8','h8','anis','ANIS']:
+    numinc, freq = 5000, 5
+else:
+    numic, freq = 1000, 1
+fid.write('*step, name=STEP, nlgeom=yes, inc={}\n'.format(numinc))
 if n.isnan(alpha):
     # Pure tension case, apply only U3
     # NOT TESTED
@@ -303,7 +311,7 @@ else:
         if not fullring:
             vol*=.5
         fid.write('*static\n'+
-                  '0.005, 1.0, 1e-06, 0.025\n'
+                  '0.0025, 1.0, 1e-06, 0.0025\n'
                   )
         fid.write('*fluid flux\n' + 
                 'INSTANCE.RP_CAV, {:.3f}\n'.format(vol/5)
@@ -320,7 +328,7 @@ fid.write('*controls, parameters=time incrementation\n')
 fid.write(' , , , , , , , 10, , , , ,\n')           
 
 # field output
-fid.write('*output, field, frequency=1\n')
+fid.write('*output, field, frequency={}\n'.format(freq))
 fid.write('** COORn must be called under history output, but COORD can be called in field\n')
 fid.write('*node output, nset=INSTANCE.NS_DISPROT_LO\n' +   # disprot nodesets
           'U, UR\n'
