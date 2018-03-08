@@ -29,6 +29,10 @@ for k,name in enumerate(nodelist):
 
 E = n.load('./ConstructionFiles/abaqus_elements.npy')
 
+ID = n.min(nc_med[:,0]) #Actually inner rad
+OD = n.max(nc_fine[:,0])
+tg = OD - ID 
+
 fid = open('./ConstructionFiles/abaqus_sets.txt','w')
 
 ################
@@ -119,11 +123,10 @@ if not fullring:
             fid.write('{:.0f}\n'.format(no))
         else:
             fid.write('{:.0f}, '.format(no))
+
 if cdt > 0:
     fid.write('*nset, nset=NS_CIRCIMPERF\n')
     # Get the ID and thickness
-    ID = n.min(nc_med[:,0])
-    tg = n.max(nc_fine[:,0]) - ID 
     rng = (ni_all[:,0]==0) & (nc_all[:,2] <= 2*tg/ID) & (nc_all[:,1] <= ID+tg/2)
     nodenums = nc_all[rng,3]
     for i,no in enumerate(nodenums):
@@ -131,6 +134,8 @@ if cdt > 0:
             fid.write('{:.0f}\n'.format(no))
         else:
             fid.write('{:.0f}, '.format(no))
+
+            
 
 ################
 # Element sets #
@@ -247,6 +252,20 @@ for i,el in enumerate(elnums):
     else:
         fid.write('{:.0f}, '.format(el))
 
+# Elset_LEprofile
+# The elements on z=0 from rq/t = 0 to 8
+fid.write('*elset, elset=ES_LEPROF\n')
+# 
+rng = (ni_fine[:,1]==0) & (nc_fine[:,0] == OD) & (nc_fine[:,2]<=(8*tg/OD))
+nodenums = compress(rng, ni_fine[:,3])
+nodenums2 = nodenums+1
+elnums = E[in1d(E[:,6], nodenums), 0]
+for i,el in enumerate(elnums):
+    if ((i+1)%16 == 0) or (i == len(elnums)-1):
+        fid.write('{:.0f}\n'.format(el))
+    else:
+        fid.write('{:.0f}, '.format(el))
+        
 # Elset_wholeid
 fid.write('*elset, elset=ES_WHOLEID\n')
 # Every element with a face on the ID

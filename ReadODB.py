@@ -8,7 +8,7 @@ INSTANCE.NS_DISPROT_LO : The node just on the cusp of the the test section
 INSTANCE.NS_DISPROT_HI : The node one above LO (in case I want to interpolate btwn them)
 INSTANCE.ES_Z : The line of elements at theta=0
 '''
-
+from __future__ import division
 import odbAccess as O
 import numpy as np
 import os
@@ -16,6 +16,8 @@ from sys import argv
 pi = np.pi
 
 job = argv[1]
+if not os.path.isfile(job + '.odb'):
+    raise ValueError('The specified job name "%s" does not exist.'%(job))
 half = True
 
 # Get the true R and t from ExptSummary
@@ -36,11 +38,6 @@ else:
     R = 0.8391
     print 'ExptSummart.dat not located. Using default R and t values'
 
-
-
-if not os.path.isfile(job + '.odb'):
-    raise ValueError('The specified job name "%s" does not exist.'%(job))
-
 nset_rp_top = 'NS_RPTOP'
 nset_rp_bot = 'NS_RPBOT'
 nset_dr_lo = 'NS_DISPROT_LO'
@@ -49,16 +46,17 @@ nset_radcont = 'NS_RADIALCONTRACTION'
 elset_th_front = 'ES_ANALZONE'
 elset_th_back = 'ES_THICKNESS_BACK'
 elset_th_side = 'ES_THICKNESS_SIDE'
-
+elset_leprof = 'ES_LEPROF'
 
 h_odb = O.openOdb(job + '.odb',readOnly=True)
 h_inst = h_odb.rootAssembly.instances[ h_odb.rootAssembly.instances.keys()[0] ]
 h_step = h_odb.steps[ h_odb.steps.keys()[0] ]
 h_All_Frames = h_step.frames
 num_incs = len(h_All_Frames)
+
 frameNos = np.empty(num_incs, dtype=int)
-for k,frame in enumerate(h_All_Frames):
-    frameNos[k] = frame.frameId
+#for k,frame in enumerate(h_All_Frames):
+#    frameNos[k] = frame.frameId
 
 h_nset_rp_top = h_inst.nodeSets[nset_rp_top]
 h_nset_dr_lo = h_inst.nodeSets[nset_dr_lo]
@@ -67,6 +65,7 @@ h_nset_urprof = h_inst.nodeSets[nset_radcont]
 h_elset_th = h_inst.elementSets[elset_th_front]
 h_elset_th_b = h_inst.elementSets[elset_th_back]
 h_elset_th_s = h_inst.elementSets[elset_th_side]
+h_elset_leprof = h_inst.elementSets[elset_leprof]
 numel_th = len(h_elset_th.elements)
 # Need to find the historyRegion key that contains the 
 # NS_PCAV node to get CVOL and PCAV.In a riks analysis, 
@@ -90,10 +89,10 @@ stn = np.empty((num_incs,3))
 Lg_lo = h_nset_dr_lo.nodes[0].coordinates[2]
 Lg_back = h_nset_dr_back.nodes[0].coordinates[2]
 
-# Some special handling for ur_prof since the jth value of U subset does not correspond to jth node in the set :(
 numnode_prof = len(h_nset_urprof.nodes)
-urnodes = np.array([i.label for i in h_nset_urprof.nodes])
 ur_prof = np.empty((num_incs+2, numnode_prof))
+numel_leprof = len(h_elset_leprof.elements)
+le_prof = np.empty((numel_leprof,num_incs+1))
 
 for i in range(num_incs):
     F[i] = h_All_Frames[i].fieldOutputs['CF'].getSubset(region=h_nset_rp_top).values[0].data[2]
@@ -121,10 +120,25 @@ for i in range(num_incs):
         ur_prof[i+2,j] = nodeUvals.data[0]
         if nodeUvals.nodeLabel != h_node.label:
             print "Warning...you're getting node mistmatch in the profile."
-            
-    
-    #for j in range(numnode_prof):
-    #    print h_nset_urprof.nodes[j].label, h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_urprof).values[j].nodeLabel
+    # Now treat the elements in elset_leprof the sameway
+
+    levals_le = h_All_Frames[i].fieldOutputs['LE'].getSubset(region=h_elset_leprof)
+    for j in range(numel_leprof):
+        h_el = h_elset_leprof.elements[j]
+        if i == 0:
+            levals_coord =  h_All_Frames[i].fieldOutputs['COORD'].getSubset(region=h_elset_leprof)
+            x,y,z = levals_coord.getSubset(region=h_el).values[0].data
+            Rel = np.sqrt(x**2+y**2)
+            qel = np.arctan2(y,x)
+            le_prof[j,i] = Rel*qel/t
+        elLE = levals_le.getSubset(region=h_el).values[0]
+        LE = elLE.data
+        le_prof[j,i+1] = np.sqrt((2.0/3.0)*(LE*LE).sum())
+    if elLE.elementLabel != h_el.label:
+        print "Warning.  You're getting an element mismatch in LEprofile"
+
+    # Grab the frame number for the history data
+    frameNos[i] = h_All_Frames[i].frameId
 
 
 # Now get history data. 
@@ -177,5 +191,12 @@ np.savetxt(fname, X=ur_prof, fmt='%.8f', delimiter=',')
 hl = '#1st line: Undef Z-coord of nodes\n'
 hl += '#2nd line: Undef r-coord of nodes\n'
 hl += '#3+nth line: nth incremend Ur of node in column'
+headerline(fname,hl)
+
+le_prof = le_prof[ le_prof[:,0].argsort() ]
+fname = '%s_LEprof.dat'%(job)
+np.savetxt(fname, X=le_prof, fmt='%.6f', delimiter=', ')
+hl = '# First column:  Undeformed Rq/to coord.\n'
+hl+= '# (k+1)th column:  LEp'
 headerline(fname,hl)
 

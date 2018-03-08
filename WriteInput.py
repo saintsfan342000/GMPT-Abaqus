@@ -11,7 +11,6 @@ Writes the input file
 '''
 
 fullring = False
-UAMP = True
 
 if len(argv[1:]) == 11:
     expt = int(argv[1])
@@ -29,7 +28,9 @@ else:
     raise ValueError('Wrong number of args. Require 11')
 
 if n.isclose(alpha, 0.5):
-    UAMP=False
+    UAMP = False
+else:
+    UAMP = True
 
 # Make sure we have a valid constitutive model
 if not( constit in ['vm', 'VM', 'H8', 'h8', 'anis', 'ANIS']):
@@ -262,7 +263,7 @@ if UAMP:
 if constit in ['H8','h8','anis','ANIS']:
     numinc, freq = 5000, 5
 else:
-    numic, freq = 1000, 1
+    numinc, freq = 1000, 1
 fid.write('*step, name=STEP, nlgeom=yes, inc={}\n'.format(numinc))
 if n.isnan(alpha):
     # Pure tension case, apply only U3
@@ -341,6 +342,9 @@ fid.write('*node output, nset=INSTANCE.NS_ALLNODES\n' +
           )
 fid.write('*node output, nset=INSTANCE.NS_RPTOP\n' +    # refpt node
           'U, UR, CF\n'
+          )
+fid.write('*element output, elset=INSTANCE.ES_LEPROF\n' + 
+            'COORD\n'
           )
 fid.write('*element output, elset=INSTANCE.ES_ALLELEMENTS, directions=YES\n' +    # sts, stn in element sets
            'S, PE, LE, P'
