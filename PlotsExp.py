@@ -29,6 +29,10 @@ for i in range(10):
         break
 else:
     raise IOError("Can't find the experiment directory!")
+key = n.genfromtxt('{}/../ExptSummary.dat'.format(exppath), delimiter=',')
+key = key[ key[:,0] == int(exp) ].ravel()
+Ro, to = key[6:8]
+
 
 # Simulation data
 d = n.genfromtxt('{}_results.dat'.format(name), delimiter=',')
@@ -136,8 +140,30 @@ ax4.axis(xmin=0,ymin=-1,ymax=1)
 f.ezlegend(ax4, loc='upper right', fontsize=20)
 f.myax(ax4, autoscale=.75, nudge=('left',.2,0))
 
-# Fig2: LEp profiles...
+try:
+    # Fig2: LEp profiles...
+    lep = n.genfromtxt('{}_LEprof.dat'.format(name), delimiter=',')
+    xlep = n.genfromtxt('{}/LEp_profiles.dat'.format(exppath), delimiter=',')
+    lepneg = lep.copy()
+    lepneg[:,0]*=-1
+    lep = n.vstack((lep,lepneg))
+    lep = lep[ lep[:,0].argsort() ]
+    p.style.use('mysty-12')
+    fig5 = p.figure(figsize=(12,6))
+    ax5 = fig5.add_axes([.12,.12,.8,.78])
+    loc = n.nonzero(d[:,10]>=xeq.max())[0][0]
+    ax5.plot(lep[:,0],lep[:,loc+1],'--')
+    ax5.plot(lep[:,0],lep[:,simloc+1],ax5.get_lines()[-1].get_color())
+    ax5.plot(xlep[:,0]/to, xlep[:,exploc+1])
+    ax5.plot(xlep[:,0]/to, xlep[:,-1], ax5.get_lines()[-1].get_color())
+    ax5.set_xlim([-8,8])
+    ax5.set_xlabel('s/t$_\\mathsf{o}$')
+    ax5.set_ylabel('e$_\\mathsf{e}$')
+    f.myax(ax5)
+    fig5.savefig('F6_LEProf.png', bbox_inches='tight')
+except OSError:
+    pass
 
-p.savefig('F5_ExpPlot.png', dpi=125, bbox_inches='tight')
+fig.savefig('F5_ExpPlot.png', dpi=125, bbox_inches='tight')
 
-p.show()
+p.show('all')
