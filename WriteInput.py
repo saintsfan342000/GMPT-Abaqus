@@ -282,11 +282,11 @@ elif n.isclose(alpha, 0.5):
     if not fullring:
         vol*=.5
     fid.write('*static\n' +
-              '0.0025, 1., 1e-06, .0025\n'
+              '0.00125, 1., 1e-06, .002\n'
               )
     fid.write('**[1]Initial incr, [2]Total step, [3]Min incr, [4]Max incr\n')
     fid.write('*fluid flux\n' + 
-              'INSTANCE.RP_CAV, {:.3f}\n'.format(vol/5)
+              'INSTANCE.RP_CAV, {:.3f}\n'.format(vol/5/2)
               )
 else:
     if not UAMP:
@@ -312,10 +312,10 @@ else:
         if not fullring:
             vol*=.5
         fid.write('*static\n'+
-                  '0.0025, 1.0, 1e-06, 0.0025\n'
+                  '0.00125, 1.0, 1e-06, 0.0025\n'
                   )
         fid.write('*fluid flux\n' + 
-                'INSTANCE.RP_CAV, {:.3f}\n'.format(vol/5)
+                'INSTANCE.RP_CAV, {:.3f}\n'.format(vol/5/2)
                   )
         if not fullring:
             force *= 0.5
@@ -370,6 +370,13 @@ elif UAMP:
     fid.write('*node output, nset=INSTANCE.RP_CAV\n' + 
               'CVOL\n'
              )
+fid.write('** Note:  This node print will result in abaqus printing\n' + 
+          '** Nearly 80000 lines worth of meaningless nodal-connectivity\n' + 
+          '** information to the dat file.\n'
+          )
+fid.write('*node print, nset=INSTANCE.RP_CAV, summary=NO\n' +
+          'CVOL\n'
+          )
 
 fid.write('*end step\n')
 # end step

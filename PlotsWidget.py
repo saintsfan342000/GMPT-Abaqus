@@ -8,16 +8,17 @@ p.style.use('mysty')
 import glob
 import os
 
-size_factor = .8
+size_factor = .65
 
+name = glob.glob('*_LEprof.dat')[0].split('_')[0]
+'''
 if len(argv) != 2:
     print('Give name of job, which is prefix to the *_results.dat' + 
             'and *_UR.dat files.  Proper opertation is for your pwd'+
             ' to be the folder where the *dat files are.  If you call'+
             '"$ python ../../Plots.py <jobname>" it will work.')
     raise IndexError('')
-    
-name = argv[1]
+'''    
 exp = name.split('-')[-1]
 exppath = 'Martin_Experiments/GM/PT/GMPT-{}_FS15SS5'.format(exp)
 
@@ -132,12 +133,12 @@ f.myax(ax2, nudge=('left',.3,.5), autoscale='preserve')
 # ax3:  Hooop-sts / hoop-stn
 # Exp. response and LL
 ax3.plot(xeq, xst[:,5], expcolor)
-ax3.plot(xeq[exploc], xst[exploc,5], '^', mfc=expcolor, mec='k')
 # Sim response and LL
 ax3.plot(d[:,10], d[:,3], simcolor)
+ax3.plot(xeq[exploc], xst[exploc,5], '^', mfc=expcolor, mec='k')
 ax3.plot(d[simloc,10], d[simloc,3], '^', mfc=simcolor, mec='k')
 # Sim marker initial value
-line3, = ax3.plot(d[0,10], d[0,3], 'o', mec=simcolor)
+line3, = ax3.plot(d[0,10], d[0,3], 'o', ms=7, alpha=0.75)
 #if not exp in [1,4]:
 #    ax3.axis(xmin=0,ymin=0)
 ax3.axis(xmin=0)
@@ -148,12 +149,12 @@ f.myax(ax3, autoscale='preserve')
 # ax4:  Ax-sts / ax-stn
 # Exp reponse and LL
 ax4.plot(xd[:,4], xst[:,4], expcolor)
-ax4.plot(xd[exploc,4], xst[exploc,4], '^', mfc=expcolor, mec='k')
 # Sim response and LL
 ax4.plot(d[:,4],d[:,2], simcolor)
 ax4.plot(d[simloc,4],d[simloc,2], '^', mfc=simcolor, mec='k')
+ax4.plot(xd[exploc,4], xst[exploc,4], '^', mfc=expcolor, mec='k')
 # Sim marker initial value
-line4, = ax4.plot(d[0,4], d[0,2], 'o', mec=simcolor)
+line4, = ax4.plot(d[0,4], d[0,2], 'o', ms=7, alpha=0.75)
 ax4.axis(ymax=1.1*xst[:,4].max())
 #if not exp in [1,4]:
 #    ax4.axis(xmin=0,ymin=0, ymax=1.05*xst[:,4].max())
@@ -162,7 +163,7 @@ ax4.set_xlabel('$\\bar{\\epsilon}_\\mathsf{x}$ (%)')
 ax4.set_ylabel('$\\sigma_{\\mathsf{x}}$\n($\\mathsf{ksi}$)')
 f.myax(ax4, autoscale='preserve')
 
-fig.text(.5, .98, annotstr, ha='center', va='top', transform=fig.transFigure)
+fig.text(.5, .98, annotstr, ha='center', va='top', transform=fig.transFigure, fontsize=20)
 #fig.text(.5, .95, 'P = {:.0f} psi'.format(P[0]*1000), ha='center', va='top', transform=fig.transFigure)
 
 from matplotlib.widgets import Slider, Button, RadioButtons
