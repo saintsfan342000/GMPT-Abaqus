@@ -144,61 +144,39 @@ c      USER INPUT IN "*.inp" FILE : PROPS(*)
 c      -------------------------------------
 c      PROPS(1) : Young's modulus
 c      PROPS(2) : Poisson's ratio
-c
-c      PROPS(3) : Hardening Option 
+c      PROPS(3) : Hardening Option  (i_hard)
 c                 |1| = Power law hardening
 c                 |2| = Voce Hardening
 c                 |3| = Table
-c	if PROPS(3) < 0 include rate sensitivity
-c
-c      PROPS(4) : Yield Function Option
+c                 < 0 include rate sensitivity
+cc      PROPS(4) : Yield Function Option (i_yield)
 c                 1 = Hill's(1948) 
 c                 2 not used
 c                 3 = Yld2004 Old Version1
 c                 4 = Yld2004 Old Version2
 c                 5 = Yld2004 Anisotropy-Final version (Please use Option 5)
-c
-c      PROPS(5) : delk(kinemtaic hardening portion) 
+c       PROPS(5) : delk(kinemtaic hardening portion) 
 c                  delk =0 : pure kinematic hardening with Chaboche Model
 c                  delk =1 & Chaboche coefficients >0  isotropic+kin hardening
 c                  delk=1 & Chaboche coefficients =0: isotropic hardening 
-c
-c	PROPS(6) : # of interpolation points through thickness for properties
-c		   PROPS(6) = nint
-c
-c	PROPS(7) : field variable (temp) used for interpolation associated
+c       PROPS(6) : # of interpolation points through thickness for properties
+c		PROPS(6) = nint
+c       PROPS(7) : field variable (temp) used for interpolation associated
 c			with this material set of constants
-c      
-c      PROPS(8) : Initial Yield Stress
+c       PROPS(8) : Initial Yield Stress
 c                 PROPS(8) = Sigmabar at Epbar = 0 in Stress-Strain Curve
-c
-c      PROPS(9-11) : For power-law hardening, Sigmabar = a(b + Epbar)**c
+c       PROPS(9-11) : For power-law hardening, Sigmabar = a(b + Epbar)**c
 c                   For voce hardening, Sigmabar = a - bEXP(-c*Epbar)
 c                   PROPS(9) = a
 c                   PROPS(10) = b
 c                   PROPS(11) = c
-c
-c      PROPS(12-17) : Anisotropic coefficients for Hill's(1948) yield function
+c       PROPS(12-17) : Anisotropic coefficients for Hill's(1948) yield function
 c                    PROPS(12) = r11
 c                        thru
 c                    PROPS(17) = r31
-c
 c      PROPS(12-30) : Anisotropic coefficients for Yld2004 function
-c                     PROPS(12) = alpa1
-c                     PROPS(13) = alpa2
-c                     PROPS(14) = alpa3
-c                     PROPS(15) = alpa4
-c                     PROPS(16) = alpa5
-c                     PROPS(17) = alpa6
-c                     PROPS(18) = alpa7
-c                     PROPS(19) = alpa8
-c                     PROPS(20) = alpa9
-c                     PROPS(21) = alpa10
-c                     PROPS(22) = alpa11
-c                     PROPS(23) = alpa12
-c                     PROPS(24-29) = alpa13-18
+c                     PROPS(12-29) = alpa1-18
 c                     PROPS(30) = m
-c
 c	PREOPS(31-32) Chaboche hardening constants C (abac1) and gamma (abac2)
 c		      PROPs(31) = abac1
 c		      PROPS(32) = abac2
@@ -217,8 +195,6 @@ c      NSTATV : Number of State Variables
 c               NSTATV = 8
 c
 c      *** end of user input in "*.inp" file ***
-c
-c
 c      *** Further Definition of ABAQUS variables ***
 c
 c      *P.S) Below part is not user input 
@@ -270,6 +246,10 @@ c------------------------------------------------------------------------------
 c      assign of ABAQUS variables
 c      --------------------------
 c	# of properties associated with each field variable
+
+       call MutexInit( 1 )
+       call MutexLock( 1 )
+
        data nlprp /28/
        data zero,one,two,three,smtol /0.d0,1.d0,2.d0,3.d0,1.d-8/
        iprint = 0
@@ -465,6 +445,7 @@ c tangent matrix
 		enddo
 	enddo
 c
+       call MutexUnlock( 1 )
        return
        end
 c---------------------------------------------------------------
