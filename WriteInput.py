@@ -69,6 +69,7 @@ fid.write('** tg = {:.4f}\n'.format(t))
 fid.write('** ID = {}\n'.format(ID))
 fid.write('** constit = "{}"\n'.format(constit))
 fid.write('** Fluid Cavity and elements.  If alpha = 0.5, then flux control\n')
+fid.write('** {} nodes, {} elements.\n'.format(nodelist.shape[0], elemlist.shape[0]))
 z = time.localtime()
 fid.write('** Generated on {}/{}/{} at {}:{}\n'.format(z[1],z[2],z[0],z[3],z[4]))
 

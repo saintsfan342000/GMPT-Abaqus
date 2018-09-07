@@ -29,7 +29,15 @@ for i in range(10):
         break
 else:
     raise IOError("Can't find the experiment directory!")
-key = n.genfromtxt('{}/../ExptSummary.dat'.format(exppath), delimiter=',')
+
+relpath = '.'
+for i in range(10):
+    if not os.path.exists('{}/ExptSummary.dat'.format(relpath)):
+        relpath = '../' + relpath
+    else:
+        key = n.genfromtxt('{}/ExptSummary.dat'.format(relpath), delimiter=',')
+        break
+
 key = key[ key[:,0] == int(exp) ].ravel()
 Ro, to = key[6:8]
 
@@ -151,7 +159,10 @@ try:
     p.style.use('mysty-12')
     fig5 = p.figure(figsize=(12,6))
     ax5 = fig5.add_axes([.12,.12,.8,.78])
-    loc = n.nonzero(d[:,10]>=xeq.max())[0][0]
+    try:
+        loc = n.nonzero(d[:,10]>=xeq.max())[0][0]
+    except IndexError:
+        loc = len(d[:,10])-1
     ax5.plot(lep[:,0],lep[:,loc+1],'--')
     ax5.plot(lep[:,0],lep[:,simloc+1],ax5.get_lines()[-1].get_color())
     ax5.plot(xlep[:,0]/to, xlep[:,exploc+1])
