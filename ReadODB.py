@@ -84,6 +84,8 @@ d_back = np.empty( (num_incs) )
 
 sts = np.empty((num_incs,3))
 stn = np.empty((num_incs,3))
+peeq = np.empty((num_incs))
+eqsts = np.empty((num_incs))
 
 # Grab undef coords of dr_lo and hi
 Lg_lo = h_nset_dr_lo.nodes[0].coordinates[2]
@@ -99,14 +101,24 @@ for i in range(num_incs):
     # P[i] = h_All_Frames[i].fieldOutputs['P'].values[0].data
     d_lo[i] = h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_dr_lo).values[0].data[2]
     d_back[i] = h_All_Frames[i].fieldOutputs['U'].getSubset(region=h_nset_dr_back).values[0].data[2]
-    tempsts, tempstn = 0, 0
+    tempsts, tempstn, temppeeq, tempeqsts = 0, 0, 0 ,0
     stresses = h_All_Frames[i].fieldOutputs['S'].getSubset(region=h_elset_th).values
     strains =  h_All_Frames[i].fieldOutputs['LE'].getSubset(region=h_elset_th).values
+    try:
+        peeq_set =  h_All_Frames[i].fieldOutputs['SDV1'].getSubset(region=h_elset_th).values
+        eqsts_set =  h_All_Frames[i].fieldOutputs['SDV2'].getSubset(region=h_elset_th).values
+    except:
+        peeq_set =  h_All_Frames[i].fieldOutputs['PEEQ'].getSubset(region=h_elset_th).values
+        eqsts_set =  h_All_Frames[i].fieldOutputs['MISESONLY'].getSubset(region=h_elset_th).values
     for j in range(numel_th):
          tempsts += stresses[j].data[:3]
          tempstn += strains[j].data[:3]
+         temppeeq += peeq_set[j].data
+         tempeqsts = eqsts_set[j].data
     sts[i] = tempsts/numel_th
     stn[i] = tempstn/numel_th
+    peeq[i] = temppeeq/numel_th
+    eqsts[i] = tempeqsts/numel_th
     
     # For some reason, the jth node in the set didn't correspond to the .values[j].nodeLabel
     # So I have to do this ridiculous thing where I create a subset for each node in the set
@@ -178,11 +190,10 @@ def headerline(fname, hl):
     fid.close()
 
 # Save
-fname = '%s_results.dat'%(job)
-
-np.savetxt(fname, X = np.vstack((F, P, sig_x, sig_q, d_lo, d_back, sts.T, stn.T, V)).T, fmt='%.6f', delimiter=', ')
-hl = '#[0] Force (kip), [1]Pressure (ksi), [2]NomAxSts, [3]NomHoopSts,' 
-hl += ' [4]d/Lg lo, [5]d/Lg Back, [6,7,8]S11,22,33, [9,10,11]LE11,22,33, [12]Vol'
+fname = '%s_NewResults.dat'%(job)
+np.savetxt(fname, X = np.c_[F, P, V, sig_x, sig_q, d_lo, d_back, sts, stn, peeq, eqsts*1000], fmt='%.6f', delimiter=', ')
+hl = '#[0] Force (kip), [1]Pressure (ksi), [2]Vol, [3]NomAxSts, [4]NomHoopSts,' 
+hl += ' [5]d/Lg lo, [6]d/Lg Back, [7,8,9]S11,22,33, [10,11,12]LE11,22,33, [13]PEEQ(SDV1), [14]EqSts(SDV2)'
 headerline(fname, hl)
 
 ur_prof = ur_prof[:,ur_prof[0].argsort()]
