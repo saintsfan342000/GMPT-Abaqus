@@ -43,10 +43,14 @@ Ro, to = key[6:8]
 
 
 # Simulation data
-d = n.genfromtxt('{}_results.dat'.format(name), delimiter=',')
+d = n.genfromtxt('{}_NewResults.dat'.format(name), delimiter=',')
 # [0] Force (kip), [1]Pressure (ksi), [2]NomAxSts, [3]NomHoopSts, [4]d/Lg lo, 
 # [5]d/Lg hi, [6,7,8]S11,22,33, [9,10,11]LE11,22,33, [12]Vol
-d[:,[4,5,9,10,11]]*=100
+#[0] Force (kip), [1]Pressure (ksi), [2]Vol, [3]NomAxSts, [4]NomHoopSts, 
+# [5]d/Lg lo, [6]d/Lg Back, [7,8,9]S11,22,33, [10,11,12]LE11,22,33, 
+# [13]PEEQ(SDV1), [14]EqSts(SDV2)
+
+d[:,[5,6,10,11,12]]*=100
 simloc = n.argmax(d[:,1])
 u = n.genfromtxt('{}_UR.dat'.format(name), delimiter=',').T
 u = u[ u[:,0] <= 2]
@@ -73,7 +77,41 @@ xu = n.genfromtxt('{}/ur_profiles.dat'.format(exppath), delimiter=',', usecols=(
 xu[:,1]*=100
 # Limitload y-coord, ur/Ro
 
-alpha, blank = n.polyfit(d[:,3],d[:,2],1)
+# Fig2: LEp profiles...
+lep = n.genfromtxt('{}_LEprof.dat'.format(name), delimiter=',')
+xlep = n.genfromtxt('{}/LEp_profiles.dat'.format(exppath), delimiter=',')
+lepneg = lep.copy()
+lepneg[:,0]*=-1
+lep = n.vstack((lep,lepneg))
+lep = lep[ lep[:,0].argsort() ]
+
+
+# Fig5:  LEProfiles.  But more importantly, will tell me where to cutoff sim data
+if True:
+    maxes = lep[:,1:].max(axis=0)
+    try:
+        maxinc = n.nonzero( maxes>=xlep[:,-1].max() )[0][0]
+    except IndexError:
+        maxinc = maxes.shape[0] - 1
+    n.savetxt('Cutoff.dat', X=[maxinc], fmt='%.0f,')
+
+    p.style.use('mysty-12')
+    fig5 = p.figure(figsize=(12,6))
+    ax5 = fig5.add_axes([.12,.12,.8,.78])
+
+    l, = ax5.plot(lep[:,0],lep[:,simloc+1], 'C0')
+    ax5.plot(lep[:,0],lep[:,maxinc+1], 'C0')
+    ax5.plot(xlep[:,0]/to, xlep[:,exploc+1], 'C1')
+    ax5.plot(xlep[:,0]/to, xlep[:,-1], 'C1')
+
+    ax5.set_xlim([-8,8])
+    ax5.set_xlabel('s/t$_\\mathsf{o}$')
+    ax5.set_ylabel('e$_\\mathsf{e}$')
+    f.myax(ax5)
+
+d = d[:maxinc+1]
+
+alpha, blank = n.polyfit(d[:,4],d[:,3],1)
 annotstr = '{}.  $\\alpha$ = {:.2f}'.format(name,alpha)
 
 p.style.use('mysty-quad')
@@ -99,11 +137,11 @@ fig.suptitle(('\n'+annotstr))
 
 # ax1: Ax sts vs ax stn.  
 # delta/L
-a, = ax1.plot(d[:,4],d[:,2], label='Anal')
+a, = ax1.plot(d[:,5],d[:,3], label='Anal')
 simcolor = a.get_color()
 x,= ax1.plot(xd[:,4], xst[:,4], label='Exp')
 expcolor = x.get_color()
-ax1.plot(d[simloc,4],d[simloc,2], '^', mfc=simcolor, mec='k')
+ax1.plot(d[simloc,5],d[simloc,3], '^', mfc=simcolor, mec='k')
 ax1.plot(xd[exploc,4], xst[exploc,4], '^', mfc=expcolor, mec='k')
 #The point field averages
 #ax1.plot(d[:,11],d[:,2], '--', color=simcolor)
@@ -117,9 +155,9 @@ f.myax(ax1)
 
 # ax2: Hoop sts vs Hoop stn
 # e_q
-ax2.plot(d[:,10],d[:,3], label='Anal')
+ax2.plot(d[:,11],d[:,4], label='Anal')
 ax2.plot(xeq, xst[:,5], label='Exp')
-ax2.plot(d[simloc,10], d[simloc,3], '^', mfc=simcolor, mec='k')
+ax2.plot(d[simloc,11], d[simloc,4], '^', mfc=simcolor, mec='k')
 ax2.plot(xeq[exploc], xst[exploc,5], '^', mfc=expcolor, mec='k')
 ax2.axis(xmin=0)
 ax2.set_xlabel('e$_\\theta$ (%)')
@@ -129,9 +167,9 @@ f.eztext(ax2, 'Avg. of Pts.', 'br')
 f.myax(ax2)
 
 # ax3: Axial vs hoop stn
-ax3.plot(d[:,10], d[:,11], label='Anal')
+ax3.plot(d[:,11], d[:,12], label='Anal')
 ax3.plot(xeq, xex, label='Exp')
-ax3.plot(d[simloc,10], d[simloc, 11], '^', mfc=simcolor, mec='k')
+ax3.plot(d[simloc,11], d[simloc, 12], '^', mfc=simcolor, mec='k')
 ax3.plot(xeq[exploc], xex[exploc], '^', mfc=expcolor, mec='k')
 ax3.axis(xmin=0)
 ax3.set_xlabel('e$_\\theta$ (%)')
@@ -148,33 +186,9 @@ ax4.axis(xmin=0,ymin=-1,ymax=1)
 f.ezlegend(ax4, loc='upper right', fontsize=20)
 f.myax(ax4, autoscale=.75, nudge=('left',.2,0))
 
-try:
-    # Fig2: LEp profiles...
-    lep = n.genfromtxt('{}_LEprof.dat'.format(name), delimiter=',')
-    xlep = n.genfromtxt('{}/LEp_profiles.dat'.format(exppath), delimiter=',')
-    lepneg = lep.copy()
-    lepneg[:,0]*=-1
-    lep = n.vstack((lep,lepneg))
-    lep = lep[ lep[:,0].argsort() ]
-    p.style.use('mysty-12')
-    fig5 = p.figure(figsize=(12,6))
-    ax5 = fig5.add_axes([.12,.12,.8,.78])
-    try:
-        loc = n.nonzero(d[:,10]>=xeq.max())[0][0]
-    except IndexError:
-        loc = len(d[:,10])-1
-    ax5.plot(lep[:,0],lep[:,loc+1],'--')
-    ax5.plot(lep[:,0],lep[:,simloc+1],ax5.get_lines()[-1].get_color())
-    ax5.plot(xlep[:,0]/to, xlep[:,exploc+1])
-    ax5.plot(xlep[:,0]/to, xlep[:,-1], ax5.get_lines()[-1].get_color())
-    ax5.set_xlim([-8,8])
-    ax5.set_xlabel('s/t$_\\mathsf{o}$')
-    ax5.set_ylabel('e$_\\mathsf{e}$')
-    f.myax(ax5)
-    fig5.savefig('F6_LEProf.png', bbox_inches='tight')
-except OSError:
-    pass
 
+
+fig5.savefig('F6_LEProf.png', bbox_inches='tight')
 fig.savefig('F5_ExpPlot.png', dpi=125, bbox_inches='tight')
 
 p.show('all')
