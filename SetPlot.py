@@ -10,16 +10,23 @@ import os
 Compare the strain paths, sts-stns, and ur_profs
 '''
 
-expts = [11, 4, 2, 8]
+expts = [11, 4, 2, 8, 3, 12]
+jobno = [2, 1, 2, 6, 2, 1]
 key = n.genfromtxt('ExptSummary.dat', delimiter=',')
 key = key[ n.in1d(key[:,0],expts) ]
 key = key[ n.argsort(key[:,4]) ]
 
-for k, exp in enumerate(expts):
+repl = {'88':'11', '99':'8', '00':'8'}
 
-    simpath = 'Jobs/{}'.format(exp)
+for k, (exp,job) in enumerate(zip(expts, jobno)):
+
+    st = str(exp)
+    simpath = 'Jobs/{}/{}'.format(exp,job)
     
     exppath = 'Martin_Experiments/GM/PT/GMPT-{}_FS15SS5'.format(exp)
+    if exp in [99, 0, 88]:
+        exppath = exppath.replace(st,repl[st])
+    
     for i in range(10):
         if not os.path.exists(exppath):
             exppath = '../' + exppath
@@ -30,6 +37,8 @@ for k, exp in enumerate(expts):
 
 
     calpath = 'Martin_Experiments/GM/Calibration/GMPT-{}'.format(exp)
+    if exp in [99, 0, 88]:
+        calpath = calpath.replace(st, repl[st])
     for i in range(10):
         if not os.path.exists(calpath):
             calpath = '../' + calpath
@@ -55,6 +64,9 @@ for k, exp in enumerate(expts):
     d = n.genfromtxt('{}/{}_NewResults.dat'.format(simpath, exp), delimiter=',')
     if cutoff > 0:
         d = d[:cutoff+1]
+    #if exp == 8:
+    #    d[:,[5,6,12]]*=1.8
+    #d[:,3:5]+=1
     #[0] Force (kip), [1]Pressure (ksi), [2]Vol, [3]NomAxSts, [4]NomHoopSts, 
     # [5]d/Lg lo, [6]d/Lg Back, [7,8,9]S11,22,33, [10,11,12]LE11,22,33, 
     # [13]PEEQ(SDV1), [14]EqSts(SDV2)
@@ -93,7 +105,7 @@ for k, exp in enumerate(expts):
     if k == 0:
         p.style.use('mysty-quad')
         p.rcParams['axes.labelsize'] = 18
-        p.rcParams['lines.markersize'] = 4
+        p.rcParams['lines.markersize'] = 3
         pad = .9
         hgap = 1.25
         vgap = 2
@@ -107,7 +119,7 @@ for k, exp in enumerate(expts):
         # Top right
         ax2 = fig.add_axes([(pad+hgap+axwt)/W, (pad+vgap+axht)/H, axwt/W, axht/H])
         # Bottom left
-        ax3 = fig.add_axes([pad/W, (pad+vgap/3)/H, axwt/W, axht/H])
+        ax3 = fig.add_axes([pad/W, (pad+vgap/3-1/3)/H, axwt/W, (axht+2/3)/H])
         # Bottom right
         ax4 = fig.add_axes([(pad+hgap+axwt)/W, .8*pad/H, axwt/W, 1.5*axht/H])
 
@@ -124,6 +136,7 @@ for k, exp in enumerate(expts):
     if k == len(expts) - 1:
         ax1.set_xlabel('$\\delta/\\mathsf{L}$ (%)')
         ax1.set_ylabel('$\\Sigma_\\mathsf{x}$\n(ksi)')
+        ax1.axis(ymin=0, xmin=-3)
         f.ezlegend(ax1, title='Exp||$\\eta\\prime$', loc='lower right')
         f.eztext(ax1, '$\\mathsf{L}_\\mathsf{g}$=1"', 'ul')
         f.myax(ax1)
@@ -135,7 +148,7 @@ for k, exp in enumerate(expts):
     ax2.plot(d[simloc,11], d[simloc,4], 'rD')
     ax2.plot(xeq[exploc], xst[exploc,5], 'rD')
     if k == len(expts) - 1:
-        ax2.axis(xmin=0)
+        ax2.axis(xmin=0, xmax=10)
         ax2.set_xlabel('e$_\\theta$ (%)')
         ax2.set_ylabel('$\\Sigma_\\theta$\n(ksi)')
         #f.ezlegend(ax2, loc='upper right')
@@ -158,8 +171,7 @@ for k, exp in enumerate(expts):
     ax3.plot(d[simloc,11], d[simloc, 12], 'rD')
     ax3.plot(xeq[exploc], xex[exploc], 'rD')
     if k == len(expts) - 1:
-        ax3.axis(xmin=0)
-        ax3.axis('equal')
+        ax3.axis([0,10,-4,6])
         ax3.set_xlabel('e$_\\theta$ (%)')
         ax3.set_ylabel('e$_\\mathsf{x}$\n(%)')
         #f.ezlegend(ax3, loc='upper right')
@@ -175,8 +187,6 @@ for k, exp in enumerate(expts):
         f.eztext(ax4, 'LL', 'br')
         f.myax(ax4, autoscale=.75, nudge=('left',.2,0))
 
-
-
-fig.savefig('SetPlot.png', dpi=125, bbox_inches='tight')
+fig.savefig('AllPlot.jpg', dpi=200, bbox_inches='tight')
 
 p.show('all')

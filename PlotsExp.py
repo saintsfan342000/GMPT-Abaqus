@@ -10,7 +10,7 @@ import os
 Compare the strain paths, sts-stns, and ur_profs
 '''
 
-if len(argv) != 2:
+if len(argv) < 2:
     print('Give name of job, which is prefix to the *_results.dat' + 
             'and *_UR.dat files.  Proper opertation is for your pwd'+
             ' to be the folder where the *dat files are.  If you call'+
@@ -18,8 +18,15 @@ if len(argv) != 2:
     raise IndexError('')
     
 name = argv[1]
-exp = name.split('-')[-1]
+exp = name.split('-')[-1].split('_')[0]
+
 exppath = 'Martin_Experiments/GM/PT/GMPT-{}_FS15SS5'.format(exp)
+
+if exp in ['99', '00']:
+    exppath = exppath.replace(exp,'8')
+elif exp in ['88']:
+    exppath = exppath.replace(exp,'11')
+
 
 # Find the experimental relative path to experiments
 for i in range(10):
@@ -191,4 +198,6 @@ f.myax(ax4, autoscale=.75, nudge=('left',.2,0))
 fig5.savefig('F6_LEProf.png', bbox_inches='tight')
 fig.savefig('F5_ExpPlot.png', dpi=125, bbox_inches='tight')
 
-p.show('all')
+if len(argv) > 2:
+    if argv[2].upper() == 'SHOW':
+        p.show('all')
