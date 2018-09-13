@@ -51,7 +51,8 @@ else:
 angle_fine = pi/6 # The fine mesh will run from 0 to angle_fine
 coord_end_chamf = sqrt( R**2 - (ODtop-(ID+tg+R))**2 ) + Lg  # y-coord where chamfer reaches ODtop
 ztop = coord_end_chamf + Ltop
-start_ref1 = 3*Lg/4  # y-coord of last node in fine-mesh elements, where the refine starts
+start_ref1 = 1.3*(ID+tg/2)  # y-coord of last node in fine-mesh elements, where the refine starts
+#start_ref1*=(9/4)*.1
 start_ref2 = coord_end_chamf  # y-coord of last node in med-mesh elements, where the refine starts
 
 def CalcOD(Y):
@@ -87,6 +88,7 @@ dq_fine = angle/(num_el_fine_q-1)   # Corrected angular step
 num_el_med_r = int(num_el_fine_r/3)
 num_node_med_r = num_el_med_r + 1
 elht_med = 3*elht_fine
+#elht_med *= 2
 start_med_z = start_ref1 + 2*elht_med
 num_el_med_z = int((start_ref2 - start_med_z)//elht_med)
 num_node_med_z = num_el_med_z + 1

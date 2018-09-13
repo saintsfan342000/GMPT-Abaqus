@@ -41,6 +41,11 @@ else:
     ODtop = '1.9675'    # Radius of thick section    
     R = '0.125'    # Radius of chamf
     
+    if expt == '00':
+        Lg, Ltop, ODtop, R = '4.5', '.5', '2.2375', '.5'
+    if expt in ['99', '88']:
+        Lg= '4.195'  # Gives me an Lg/Rm of 10.  4.195 is Lg/2
+        
     ### Nodes
     println()
     print('Generating nodes.')

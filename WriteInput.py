@@ -212,7 +212,7 @@ elif constit == 'H8':
         fid.write(mat)
         matfid.close()    
 elif constit in ['ANIS', 'anis']:
-    with open('./ConstructionFiles/abaqus_material_ANIS.txt','r') as matfid:
+    with open('./ConstructionFiles/abaqus_material_ANISp1.txt','r') as matfid:
         mat = matfid.read()
         fid.write(mat)
         matfid.close()
@@ -262,7 +262,7 @@ if UAMP:
     fid.write('*amplitude, name=FORCE_AMP, Definition=User, Variables=1\n')
 
 if constit in ['H8','h8','anis','ANIS']:
-    numinc, freq = 5000, 5
+    numinc, freq = 10000, 5
 else:
     numinc, freq = 1000, 1
 fid.write('*step, name=STEP, nlgeom=yes, inc={}\n'.format(numinc))
@@ -313,10 +313,10 @@ else:
         if not fullring:
             vol*=.5
         fid.write('*static\n'+
-                  '0.00125, 1.0, 1e-06, 0.0025\n'
+                  '0.000325, 1.0, 1e-06, 0.000325\n'
                   )
         fid.write('*fluid flux\n' + 
-                'INSTANCE.RP_CAV, {:.3f}\n'.format(vol/5/2)
+                'INSTANCE.RP_CAV, {:.3f}\n'.format(2*vol/5/2)
                   )
         if not fullring:
             force *= 0.5
