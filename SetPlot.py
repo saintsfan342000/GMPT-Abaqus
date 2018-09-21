@@ -10,10 +10,18 @@ import os
 Compare the strain paths, sts-stns, and ur_profs
 '''
 
+save = 1
+export = False
+
 try:
     case = argv[1]
 except IndexError:
     case = 'BestSoFar'
+
+try: 
+    expdataplot = argv[2].upper()
+except IndexError:
+    expdataplot = 'Exp'
 
 if case.upper() in ['BAD']:
     expts = [11, 4, 2, 8, 3, 12]
@@ -22,10 +30,9 @@ elif case.upper() in ['1PCT']:
     expts = [11, 4, 2, 8, 3, 12]
     jobno = [3, 3, 3, 7, 4, 3]
 else:
+    case = 'BestSoFar'
     expts = [11, 4, 2, 8, 3, 12]
     jobno = [2, 2, 2, 6, 3, 2]
-
-export = True
 
 if export:
     import pandas as pd
@@ -36,9 +43,17 @@ if export:
     LL = n.empty((len(expts), 10))
     FA = n.empty((len(expts), 10))
     
+expts = n.array(expts)
+jobno = n.array(jobno)   
+    
 key = n.genfromtxt('ExptSummary.dat', delimiter=',')
 key = key[ n.in1d(key[:,0],expts) ]
-key = key[ n.argsort(key[:,4]) ]
+key = key[ key[:,4].argsort() ]
+for k,i in enumerate(expts):
+    loc = n.nonzero(key[:,0]==i)[0][0]
+    key[loc,1] = jobno[k]
+
+expts, jobno = key[:,:2].astype(int).T
 
 repl = {'88':'11', '99':'8', '00':'8'}
 
@@ -65,6 +80,7 @@ ax4 = fig.add_axes([(pad+hgap+axwt)/W, .8*pad/H, axwt/W, 1.5*axht/H])
 
 for k, (exp,job) in enumerate(zip(expts, jobno)):
 
+    print(case, expdataplot)
     st = str(exp)
     simpath = 'Jobs/{}/{}'.format(exp,job)
     
@@ -91,17 +107,6 @@ for k, (exp,job) in enumerate(zip(expts, jobno)):
             break
     else:
         raise IOError("Can't find the calibration directory!")
-
-    relpath = '.'
-    for i in range(10):
-        if not os.path.exists('{}/ExptSummary.dat'.format(relpath)):
-            relpath = '../' + relpath
-        else:
-            key = n.genfromtxt('{}/ExptSummary.dat'.format(relpath), delimiter=',')
-            break
-
-    key = key[ key[:,0] == int(exp) ].ravel()
-    Ro, to = key[6:8]
 
     # Simulation data
     cutoff = n.genfromtxt('{}/Cutoff.dat'.format(simpath),dtype=int, delimiter=',')[0]
@@ -133,12 +138,19 @@ for k, (exp,job) in enumerate(zip(expts, jobno)):
     # [6]d/L, Lg=4.289991
     # d[:,1:3] = n.log(1+d[:,1:3])
     xd[:,1:]*=100
-    xstn= n.genfromtxt('{}/WholeFieldAverage.dat'.format(exppath), delimiter=',', usecols=(1,2))
-    #From Cal data!
-    # [0]Stage, [1]Wp, [2]SigX_Tru, [3]SigQ_True, [4]ex, [5]eq, [6]e3, [7]ep_x, [8]ep_q, [9]ep_3, [10]R_tru, [11]th_tru
-    #xstn = n.genfromtxt('{}/CalData.dat'.format(calpath), delimiter=',', usecols=(4,5))
+    
     # Expt nominal hoop stn in area close to ES_ANALZONE
+    xstn= n.genfromtxt('{}/WholeFieldAverage.dat'.format(exppath), delimiter=',', usecols=(1,2))
     xstn = n.log(1+xstn)*100
+    
+    if expdataplot == 'CALDATA':
+        #From Cal data!
+        if k == 0: 
+            case+='_CalData'
+        # [0]Stage, [1]Wp, [2]SigX_Tru, [3]SigQ_True, [4]ex, [5]eq, [6]e3, 
+        # [7]ep_x, [8]ep_q, [9]ep_3, [10]R_tru, [11]th_tru
+        xstn = n.genfromtxt('{}/CalData.dat'.format(calpath), delimiter=',', usecols=(4,5))*100
+
     xex, xeq = xstn.T
     xst = n.genfromtxt('{}/STPF.dat'.format(exppath), delimiter=',', usecols=(range(6)))
     # [0]Stage, [1]Time, [2]Force(kip), [3]Pressure(ksi), [4]NomAxSts(ksi), [5]NomHoopSts(ksi)
@@ -227,8 +239,9 @@ if export:
     fid.close()
               
 fig.suptitle(case)
-fig.savefig('AllPlot_{}.jpg'.format(case), dpi=200, bbox_inches='tight')
-fig.savefig('AllPlot_{}.pdf'.format(case),bbox_inches='tight')
+if save:
+    fig.savefig('AllPlot_{}.jpg'.format(case), dpi=200, bbox_inches='tight')
+    fig.savefig('AllPlot_{}.pdf'.format(case),bbox_inches='tight')
 
 p.show('all')
 
