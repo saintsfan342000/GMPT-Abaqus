@@ -205,6 +205,35 @@ for i,el in enumerate(elnums):
         fid.write('{:.0f}\n'.format(el))
     else:
         fid.write('{:.0f}, '.format(el))
+
+# Elset_AnalZone: 
+# All OD elements in a region comparable to the zone I analyzed for calibration
+fid.write('*elset, elset=ES_ANALZONE\n')
+# All elements from 0 to 0.5 inches in Z, and theta<75 deg.  
+# Must look in ni_fine and ni_med
+rng = ((ni_fine[:,0] == ni_fine[:,0].max()) & 
+        (nc_fine[:,2]<=75*n.pi/180) &
+        (nc_fine[:,1]<=0.5)
+       )
+nodenums = compress(rng, ni_fine[:,3])
+nodenums2 = nodenums + 1
+rng = (in1d(E[:,3],nodenums)) & (in1d(E[:,2],nodenums2))
+elnums = E[rng, 0]
+rng = ((ni_med[:,0] == ni_med[:,0].max()) & 
+        (nc_med[:,2]<=75*n.pi/180) &
+        (nc_med[:,1]<=0.5)
+       )
+nodenums = compress(rng, ni_med[:,3])
+nodenums2 = nodenums + 1
+rng = (in1d(E[:,3],nodenums)) & (in1d(E[:,2],nodenums2))
+elnums = n.hstack((elnums,E[rng, 0]))
+for i,el in enumerate(elnums):
+    if ((i+1)%16 == 0) or (i == len(elnums)-1):
+        fid.write('{:.0f}\n'.format(el))
+    else:
+        fid.write('{:.0f}, '.format(el))
+
+
 # Elset_wholeid
 fid.write('*elset, elset=ES_WHOLEID\n')
 # Every element with a face on the ID

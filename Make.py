@@ -38,8 +38,8 @@ else:
     println()
     print('Generating nodes.')
     os.system( ('python Nodes.py {:s} {:s} {:s}' +
-                '{:s} {:s} {:s}' +
-                '{:s} {:s}').format(
+                ' {:s} {:s} {:s}' +
+                ' {:s} {:s}').format(
                 Lg, Ltop, ODtop, 
                 ID, tg, R, 
                 num_el_fine_th, dt))

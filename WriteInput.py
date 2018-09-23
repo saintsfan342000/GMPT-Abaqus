@@ -26,6 +26,11 @@ if len(argv[1:]) == 10:
 else:
     raise ValueError('Wrong number of args. Require 10')
 
+if n.isclose(alpha, 0.5):
+   UAMP = False
+else:
+    UAMP = True
+
 # Make sure we have a valid constitutive model
 if not( constit in ['vm', 'VM', 'H8', 'h8', 'anis', 'ANIS']):
     raise ValueError("Bad constit given '{}'.\nMust be 'vm', 'VM', 'H8', 'anis', 'ANIS'.".format(constit))
@@ -63,6 +68,7 @@ fid.write('** tg = {:.4f}\n'.format(t))
 fid.write('** ID = {}\n'.format(ID))
 fid.write('** constit = "{}"\n'.format(constit))
 fid.write('** Fluid Cavity and elements.  If alpha = 0.5, then flux control\n')
+fid.write('** {} nodes, {} elements.\n'.format(nodelist.shape[0], elemlist.shape[0]))
 z = time.localtime()
 fid.write('** Generated on {}/{}/{} at {}:{}\n'.format(z[1],z[2],z[0],z[3],z[4]))
 
@@ -106,16 +112,22 @@ fid.write('*node, nset=RP_CAV\n' +
           )
 # Now generate the surface elements that connect from top ID nodes to top RP
 cnodes = n.load('./ConstructionFiles/ni_cors.npy')
+# Inner diam and max z coord
 rng = (cnodes[:,0] == 0) & (cnodes[:,1] == cnodes[:,1].max())
-nodes = cnodes[rng,3]
-nodes = nodelist[nodes-1]
-nodes = vstack(( [nodenum, 0, 0, zcoord],nodes ))
-tri = trimesh(nodes[:,[1,2]])
+nodes = cnodes[rng,3] # node num
+nodes = nodelist[nodes-1] # From master node list
+# Reorder nodes.  Nodenum increases from q=0 to pi.  I need to go in reverse on connecting.
+nodes = n.flipud(nodes)
 fid.write('*element, type=SFM3D3, elset=ES_SURFELS\n')
 e1 = elemlist[:,0].max()
-for k,i in enumerate(tri.simplices):
-    fid.write('{:d}, {:.0f}, {:.0f}, {:.0f}\n'.format(e1+k+1,
-          nodes[i[0],0], nodes[i[2],0], nodes[i[1],0]))
+for k,i in enumerate(nodes[:-1,0]):
+        fid.write('{:d}, {:.0f}, {:.0f}, {:.0f}\n'.format(e1+k+1,
+                            nodenum, nodes[k,0], nodes[k+1,0])
+                                     )
+        if fullring:
+                # Connect back to zero.  Not tested.
+                    fid.write('{:d}, {:.0f}, {:.0f}, {:.0f}'.format(el+k+2),
+                                            nodenum, nodes[k+1,0], nodes[0,0])
 
 # Orientation, transformation, section
 fid.write('*orientation, name=ANISOTROPY, system=cylindrical, definition=coordinates\n' +
@@ -238,13 +250,21 @@ fid.write('INSTANCE.RP_CAV, 1, 6\n')
 fid.write('****************************************\n')
 fid.write('*************** STEP *******************\n')
 fid.write('****************************************\n')
-fid.write('*step, name=STEP, nlgeom=yes, inc=200\n')
+if UAMP:
+    fid.write('*amplitude, name=FORCE_AMP, Definition=User, Variables=1\n')
+
+if constit in ['H8','h8','anis','ANIS']:
+    numinc, freq = 10000, 5
+else:
+    numinc, freq = 1000, 1
+fid.write('*step, name=STEP, nlgeom=yes, inc={}\n'.format(numinc))
 if n.isnan(alpha):
     # Pure tension case, apply only U3
     # NOT TESTED
     fid.write('*static\n' +
               '0.005, 1., 1e-05, .005\n'
               )
+    fid.write('**[1]Initial incr, [2]Total step, [3]Min incr, [4]Max incr\n')
     fid.write('*boundary\n' + 
               'INSTANCE.RP_TOP, 3, 3, 0.3\n'
               )
@@ -255,31 +275,54 @@ elif n.isclose(alpha, 0.5):
     if not fullring:
         vol*=.5
     fid.write('*static\n' +
-              '0.0025, 1., 1e-06, .0025\n'
+              '0.00125, 1., 1e-06, .002\n'
               )
+    fid.write('**[1]Initial incr, [2]Total step, [3]Min incr, [4]Max incr\n')
     fid.write('*fluid flux\n' + 
-              'INSTANCE.RP_CAV, {:.3f}\n'.format(vol/3)
+              'INSTANCE.RP_CAV, {:.3f}\n'.format(vol/5/2)
               )
 else:
-    # Pressurizing and pulling.  Must use riks 
-    # NOT TESTED
-    # [1]Inital arc len, [2]total step, [3]minimum increm, [4]max increm (no max if blank), [5]Max LPF, [6]Node whose disp is monitored, [7]DOF, [8]Max Disp
-    fid.write('*static, riks\n' +
-            '0.0005, 1.0, 1e-05, .0005, .0022, ASSEMBLY.RIKSMON, {:.0f}, {:.6f}\n'.format(riks_DOF_num, riks_DOF_val)
-              )
-    fid.write('**[1]Inital arc len, [2]total step, [3]minimum increm, [4]max increm (no max if blank),' +
-              ' [5]Max LPF, [6]Node whose disp is monitored, [7]DOF, [8]Max Disp\n')
-    if not fullring:
-        force*=.5
-    fid.write('*cload\n' +
-                  'INSTANCE.NS_RPTOP, 3, {:.5f}\n'.format(force) 
-              )
-    fid.write('*boundary\n' + 
-              'INSTANCE.RP_CAV, 8, 8, {:.5f}\n'.format(press)
-              )
-              
+    if not UAMP:
+    # Pressurizing and pulling.  Must use riks or UAMP
+        # [1]Inital arc len, [2]total step, [3]minimum increm, [4]max increm (no max if blank), [5]Max LPF, [6]Node whose disp is monitored, [7]DOF, [8]Max Disp
+        fid.write('*static, riks\n' +
+                '0.0005, 1.0, 1e-15, , .0022, ASSEMBLY.RIKSMON, '+
+                '{:.0f}, {:.6f}\n'.format(riks_DOF_num, riks_DOF_val)
+                 )
+        fid.write('**[1]Inital arc len, [2]total step, [3]minimum increm, [4]max increm'+
+                    '(no max if blank),' +
+                  ' [5]Max LPF, [6]Node whose disp is monitored, [7]DOF, [8]Max Disp\n')
+        if not fullring:
+            force*=.5
+        fid.write('*cload\n' +
+                      'INSTANCE.NS_RPTOP, 3, {:.5f}\n'.format(force) 
+                  )
+        fid.write('*boundary\n' + 
+                  'INSTANCE.RP_CAV, 8, 8, {:.5f}\n'.format(press)
+                  )
+    elif UAMP:
+        vol = pi*R*R*zcoord
+        if not fullring:
+            vol*=.5
+        fid.write('*static\n'+
+                  '0.000325, 1.0, 1e-06, 0.000325\n'
+                  )
+        fid.write('*fluid flux\n' + 
+                'INSTANCE.RP_CAV, {:.3f}\n'.format(2*vol/5/2)
+                  )
+        if not fullring:
+            force *= 0.5
+        fid.write('*cload, op=MOD, amplitude=FORCE_AMP\n'
+                  'INSTANCE.NS_RPTOP, 3, {:.6f}\n'.format(force/press)
+                  )
+
+# Solver controls
+fid.write('** Increase number of increment cutbacks permitted\n')
+fid.write('*controls, parameters=time incrementation\n')
+fid.write(' , , , , , , , 10, , , , ,\n')           
+
 # field output
-fid.write('*output, field, frequency=1\n')
+fid.write('*output, field, frequency={}\n'.format(freq))
 fid.write('** COORn must be called under history output, but COORD can be called in field\n')
 fid.write('*node output, nset=INSTANCE.NS_DISPROT_LO\n' +   # disprot nodesets
           'U, UR\n'
@@ -293,6 +336,9 @@ fid.write('*node output, nset=INSTANCE.NS_ALLNODES\n' +
 fid.write('*node output, nset=INSTANCE.NS_RPTOP\n' +    # refpt node
           'U, UR, CF\n'
           )
+fid.write('*element output, elset=INSTANCE.ES_Z\n' + 
+            'COORD\n'
+          )
 fid.write('*element output, elset=INSTANCE.ES_ALLELEMENTS, directions=YES\n' +    # sts, stn in element sets
            'S, PE, LE, P'
           )
@@ -300,11 +346,31 @@ if constit in ['H8','h8','anis','ANIS']:
     fid.write(', SDV1, SDV2\n')
 else:
     fid.write('\n')
-fid.write('*output, history, frequency=1\n')
-fid.write('*node output, nset=INSTANCE.RP_CAV\n' + 
-          'CVOL, PCAV\n'
-         )
+
+# History output.  Different for RIKS vs UAMP
+if not UAMP:
+    fid.write('*output, history, frequency=1\n')
+    fid.write('*node output, nset=INSTANCE.RP_CAV\n' + 
+              'CVOL, PCAV\n'
+             )
+elif UAMP:
+    # Then we need separate histpory requests for PCAV and CVOL
+    fid.write('*output, history, frequency=1, sensor, name=PRESS\n')
+    fid.write('*node output, nset=INSTANCE.RP_CAV,global=NO\n' +
+              'PCAV\n'
+              )
+    fid.write('*output, history, frequency=1\n')
+    fid.write('*node output, nset=INSTANCE.RP_CAV\n' + 
+              'CVOL\n'
+             )
+fid.write('** Note:  This node print will result in abaqus printing\n' + 
+          '** Nearly 80000 lines worth of meaningless nodal-connectivity\n' + 
+          '** information to the dat file.\n'
+          )
+fid.write('*node print, nset=INSTANCE.RP_CAV, summary=NO\n' +
+          'CVOL\n'
+          )
+
 fid.write('*end step\n')
 # end step
 fid.close()
-

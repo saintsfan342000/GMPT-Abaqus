@@ -33,6 +33,7 @@ try:
     num_el_fine_r = int(num_el_fine_r)  # Num elements thru the test section thickness
     dt = float(dt) # Specify dt/tg.  
 except:
+    print('****** EXCPETION RAISE USING DEFAULTS ********')
     Lg = 4 / 2
     Ltop = 0.5  # Length of thick section above radius/chamf
     ODtop = 1.9685/2    # Radius of thick section
@@ -49,7 +50,7 @@ else:
 angle_fine = pi/8 # The fine mesh will run from 0 to angle_fine
 coord_end_chamf = sqrt( R**2 - (ODtop-(ID+tg+R))**2 ) + Lg  # y-coord where chamfer reaches ODtop
 ztop = coord_end_chamf + Ltop
-start_ref1 = Lg/2  # y-coord of last node in fine-mesh elements, where the refine starts
+start_ref1 = 5*tg  # y-coord of last node in fine-mesh elements, where the refine starts
 start_ref2 = coord_end_chamf  # y-coord of last node in med-mesh elements, where the refine starts
 
 def CalcOD(Y):
@@ -126,7 +127,7 @@ zspace = linspace(start_med_z, start_ref2, num_node_med_z)
 rng_lo =  zspace < Lg
 rng_hi = zspace > coord_end_chamf
 rng_med = ~(rng_lo | rng_hi)  #This is where we refine
-ref_fact = 3
+ref_fact = 18/num_el_fine_r
 zspace = hstack(( zspace[rng_lo],
                   linspace(Lg, coord_end_chamf, ref_fact*rng_med.sum()-(ref_fact-1)),
                   zspace[rng_hi]
