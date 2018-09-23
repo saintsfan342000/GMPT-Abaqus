@@ -10,8 +10,8 @@ import os
 Compare the strain paths, sts-stns, and ur_profs
 '''
 
-save = 1
-export = False
+save = 0
+export = 0
 
 try:
     case = argv[1]
@@ -31,8 +31,8 @@ elif case.upper() in ['1PCT']:
     jobno = [3, 3, 3, 7, 4, 3]
 else:
     case = 'BestSoFar'
-    expts = [11, 4, 2, 8, 3, 12]
-    jobno = [2, 2, 2, 6, 3, 2]
+    expts = [11, 4, 2, 8, 3, 12, 10, 7]
+    jobno = [2, 2, 2, 6, 3, 2, 3, 2]
 
 if export:
     import pandas as pd
@@ -227,13 +227,14 @@ for k, (exp,job) in enumerate(zip(expts, jobno)):
         FA[k,:2] = exp, alpha
         FA[k, 2:6] = expdata[-1]
         FA[k, 6:] = simdata[-1]
-        pd.DataFrame(expdata).to_excel(fid, sheet_name='GMPT-{}'.format(exp), 
+        pd.DataFrame(expdata).to_excel(fid, sheet_name='GMPT-{} || {:.2f}'.format(exp,alpha), 
                     header=exphead, index=False)
-        pd.DataFrame(simdata).to_excel(fid, sheet_name='GMPT-{}'.format(exp), 
+        pd.DataFrame(simdata).to_excel(fid, sheet_name='GMPT-{} || {:.2f}'.format(exp,alpha), 
                     header=simhead, index=False, startcol=(expdata.shape[1]+2))
                
 
 if export:
+    
     pd.DataFrame(LL).to_excel(fid, sheet_name='LL', header=['Exp', 'Alpha']+exphead+simhead, index=False)
     pd.DataFrame(FA).to_excel(fid, sheet_name='Failure', header=['Exp', 'Alpha']+exphead+simhead, index=False)
     fid.close()
