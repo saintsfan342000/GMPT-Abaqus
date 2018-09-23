@@ -10,7 +10,7 @@ import os
 Compare the strain paths, sts-stns, and ur_profs
 '''
 
-save = 0
+save = 1
 export = 0
 
 try:
@@ -31,8 +31,8 @@ elif case.upper() in ['1PCT']:
     jobno = [3, 3, 3, 7, 4, 3]
 else:
     case = 'BestSoFar'
-    expts = [11, 4, 2, 8, 3, 12, 10, 7]
-    jobno = [2, 2, 2, 6, 3, 2, 3, 2]
+    expts = [11, 4, 2, 8, 3, 12, 10]
+    jobno = [2, 2, 2, 6, 3, 2, 5]
 
 if export:
     import pandas as pd
