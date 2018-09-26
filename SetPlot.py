@@ -29,10 +29,13 @@ if case.upper() in ['BAD']:
 elif case.upper() in ['1PCT']:
     expts = [11, 4, 2, 8, 3, 12]
     jobno = [3, 3, 3, 7, 4, 3]
+elif case.upper() in ['2PCT']:
+    expts = [2,3,4,8,11,12]
+    jobno = [4,5,4,9,4, 4]
 else:
     case = 'BestSoFar'
     expts = [11, 4, 2, 8, 3, 12, 10]
-    jobno = [2, 2, 2, 6, 3, 2, 5]
+    jobno = [2,  2, 2, 6, 3, 2,  5]
 
 if export:
     import pandas as pd

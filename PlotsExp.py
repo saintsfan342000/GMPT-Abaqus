@@ -11,14 +11,24 @@ Compare the strain paths, sts-stns, and ur_profs
 '''
 
 if len(argv) < 2:
-    print('Give name of job, which is prefix to the *_results.dat' + 
+    print('Give name of job, which is prefix to the *_results.dat' +
             'and *_UR.dat files.  Proper opertation is for your pwd'+
             ' to be the folder where the *dat files are.  If you call'+
             '"$ python ../../Plots.py <jobname>" it will work.')
     raise IndexError('')
-    
+
 name = argv[1]
 exp = name.split('-')[-1].split('_')[0]
+
+export = False
+if export:
+    import pandas as pd
+    fname = 'GMPT-{}.xlsx'.format(name)
+    fid = pd.ExcelWriter(fname)
+    exphead = 'Expt AxSts, HoopSts, AxStn, HoopStn, d/Lg (1")'.split(', ')
+    simhead = 'Sim AxSts, HoopSts, AxStn, HoopStn, d/Lg (1")'.split(', ')
+    expProfHead = 'exp s/t, LE LL, LE Fail'.split(', ')
+    simProfHead = 'sim s/t, LE LL, LE Fail'.split(', ')
 
 exppath = 'Martin_Experiments/GM/PT/GMPT-{}_FS15SS5'.format(exp)
 
@@ -26,7 +36,6 @@ if exp in ['99', '00']:
     exppath = exppath.replace(exp,'8')
 elif exp in ['88']:
     exppath = exppath.replace(exp,'11')
-
 
 # Find the experimental relative path to experiments
 for i in range(10):
@@ -50,12 +59,9 @@ Ro, to = key[6:8]
 
 
 # Simulation data
+#[0] Force (kip), [1]Pressure (ksi), [2]Vol, [3]NomAxSts, [4]NomHoopSts, [5]d/Lg lo,
+# [6]d/Lg Back, [7,8,9]S11,22,33, [10,11,12]LE11,22,33, [13]PEEQ(SDV1), [14]EqSts(SDV2)
 d = n.genfromtxt('{}_NewResults.dat'.format(name), delimiter=',')
-# [0] Force (kip), [1]Pressure (ksi), [2]NomAxSts, [3]NomHoopSts, [4]d/Lg lo, 
-# [5]d/Lg hi, [6,7,8]S11,22,33, [9,10,11]LE11,22,33, [12]Vol
-#[0] Force (kip), [1]Pressure (ksi), [2]Vol, [3]NomAxSts, [4]NomHoopSts, 
-# [5]d/Lg lo, [6]d/Lg Back, [7,8,9]S11,22,33, [10,11,12]LE11,22,33, 
-# [13]PEEQ(SDV1), [14]EqSts(SDV2)
 
 d[:,[5,6,10,11,12]]*=100
 simloc = n.argmax(d[:,1])
@@ -73,6 +79,7 @@ xd = n.genfromtxt('{}/Results.dat'.format(exppath), delimiter=',')
 # [0] Stage, [1,2,3]eps_x,q,xq(point avg), [4]eps_x(1"ext), [5]eps_q(BFcirc@mid)
 # [6]d/L, Lg=4.289991
 xd[:,1:]*=100
+# [0]Stage, [1,2]Epsx,q, +/-.5", [3,4]1", [5,6]1.5", [7,8] 1.9"Central 90 deg of points
 xstn= n.genfromtxt('{}/WholeFieldAverage.dat'.format(exppath), delimiter=',', usecols=(1,2))
 # Expt nominal hoop stn in area close to ES_ANALZONE
 xstn = n.log(1+xstn)*100
@@ -116,6 +123,10 @@ if True:
     ax5.set_ylabel('e$_\\mathsf{e}$')
     f.myax(ax5)
 
+    if export:
+        expLEprof = n.c_[xlep[:,0]/to, xlep[:,exploc+1], xlep[:,-1]]
+        simLEprof = n.c_[lep[:,0], lep[:,simloc+1], lep[:,maxinc+1]]
+
 d = d[:maxinc+1]
 
 alpha, blank = n.polyfit(d[:,4],d[:,3],1)
@@ -142,7 +153,7 @@ ax4 = fig.add_axes([(pad+hgap+axwt)/W, .8*pad/H, axwt/W, 1.5*axht/H])
 
 fig.suptitle(('\n'+annotstr))
 
-# ax1: Ax sts vs ax stn.  
+# ax1: Ax sts vs ax stn.
 # delta/L
 a, = ax1.plot(d[:,5],d[:,3], label='Anal')
 simcolor = a.get_color()
@@ -194,10 +205,34 @@ f.ezlegend(ax4, loc='upper right', fontsize=20)
 f.myax(ax4, autoscale=.75, nudge=('left',.2,0))
 
 
-
 fig5.savefig('F6_LEProf.png', bbox_inches='tight')
 fig.savefig('F5_ExpPlot.png', dpi=125, bbox_inches='tight')
 
 if len(argv) > 2:
     if argv[2].upper() == 'SHOW':
         p.show('all')
+
+if export:
+    p.close('all')
+    # Expt AxSts, HoopSts, AxStn, HoopStn, d/Lg (1")
+    expdata = n.c_[xst[:,4], xst[:,5], xex, xeq, xd[:,4]]
+    simdata = n.c_[d[:,3], d[:,4], d[:,12], d[:,11], d[:,5]]
+    LL = n.hstack((expdata[exploc], simdata[simloc]))
+    pd.DataFrame(expdata).to_excel(fid, sheet_name = 'GMPT-{} ||  {:.3f}'.format(name,alpha),
+                            header=exphead, index=False)
+    pd.DataFrame(simdata).to_excel(fid, sheet_name = 'GMPT-{} ||  {:.3f}'.format(name,alpha),
+                            header=simhead, index=False, startcol=expdata.shape[1] + 2)
+    pd.DataFrame(expLEprof).to_excel(fid, sheet_name = 'Exp Profile', header=expProfHead, index=False)
+    pd.DataFrame(simLEprof).to_excel(fid, sheet_name = 'Sim Profile', header=simProfHead, index=False)
+    pd.DataFrame(LL[None,:]).to_excel(fid, sheet_name='LL', header=exphead+simhead, index=False)
+    fid.close()
+    fig, ax1, ax2, ax3, ax4 = f.makequad()
+    ax1.plot(expdata[:,2], expdata[:,0])
+    ax1.plot(simdata[:,2], simdata[:,0])
+    ax2.plot(expdata[:,3], expdata[:,1])
+    ax2.plot(simdata[:,3], simdata[:,1])
+    ax3.plot(expdata[:,4], expdata[:,1])
+    ax3.plot(simdata[:,4], simdata[:,1])
+    ax4.plot(expLEprof[:,0], expLEprof[:,1:])
+    ax4.plot(simLEprof[:,0], simLEprof[:,1:])
+    p.show()
