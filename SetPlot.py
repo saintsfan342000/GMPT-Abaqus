@@ -32,6 +32,11 @@ elif case.upper() in ['1PCT']:
 elif case.upper() in ['2PCT']:
     expts = [2,3,4,8,11,12]
     jobno = [4,5,4,9,4, 4]
+elif case.upper() in ['FILTER', 'FILT']:
+    case = 'Filter'
+    expts = [11, 4, 2, 8, 3, 12, 10]
+    jobno = [2,  2, 2, 6, 3, 2,  5]
+
 else:
     case = 'BestSoFar'
     expts = [11, 4, 2, 8, 3, 12, 10]
@@ -157,7 +162,20 @@ for k, (exp,job) in enumerate(zip(expts, jobno)):
     xex, xeq = xstn.T
     xst = n.genfromtxt('{}/STPF.dat'.format(exppath), delimiter=',', usecols=(range(6)))
     # [0]Stage, [1]Time, [2]Force(kip), [3]Pressure(ksi), [4]NomAxSts(ksi), [5]NomHoopSts(ksi)
-    exploc = xst[:,3].argmax()
+    
+    if case == 'Filter':
+        from scipy.signal import savgol_filter as sg
+        winlen = xst.shape[0]//10
+        if winlen%2 == 0: winlen+=1
+        xst[:,5] = sg(xst[:,5], winlen, 1)
+        xst[:,4] = sg(xst[:,4], winlen, 1)
+        winlen//=2
+        if winlen%2 == 0: winlen+=1
+        xeq = sg(xeq, winlen, 1)
+        xex = sg(xex, winlen, 1)
+        xd[:,4] = sg(xd[:,4], winlen, 1) 
+    
+    exploc = xst[:,5].argmax()
     xu = n.genfromtxt('{}/ur_profiles.dat'.format(exppath), delimiter=',', usecols=(0,3*exploc+2,-1))
     xu[:,1:]*=100
     # Limitload y-coord, ur/Ro

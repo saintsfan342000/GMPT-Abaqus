@@ -5,6 +5,7 @@ from sys import argv
 import figfun as f
 import glob
 import os
+from scipy.signal import savgol_filter as sg
 
 '''
 Compare the strain paths, sts-stns, and ur_profs
@@ -20,7 +21,7 @@ if len(argv) < 2:
 name = argv[1]
 exp = name.split('-')[-1].split('_')[0]
 
-export = False
+export = True
 if export:
     import pandas as pd
     fname = 'GMPT-{}.xlsx'.format(name)
@@ -57,7 +58,6 @@ for i in range(10):
 key = key[ key[:,0] == int(exp) ].ravel()
 Ro, to = key[6:8]
 
-
 # Simulation data
 #[0] Force (kip), [1]Pressure (ksi), [2]Vol, [3]NomAxSts, [4]NomHoopSts, [5]d/Lg lo,
 # [6]d/Lg Back, [7,8,9]S11,22,33, [10,11,12]LE11,22,33, [13]PEEQ(SDV1), [14]EqSts(SDV2)
@@ -86,7 +86,21 @@ xstn = n.log(1+xstn)*100
 xex, xeq = xstn.T
 xst = n.genfromtxt('{}/STPF.dat'.format(exppath), delimiter=',', usecols=(range(6)))
 # [0]Stage, [1]Time, [2]Force(kip), [3]Pressure(ksi), [4]NomAxSts(ksi), [5]NomHoopSts(ksi)
-exploc = xst[:,3].argmax()
+
+###################################################
+########## FILTERING EXP DATA #####################
+###################################################
+winlen = xst.shape[0]//10
+if winlen%2 == 0: winlen+=1
+xst[:,5] = sg(xst[:,5], winlen, 1)
+xst[:,4] = sg(xst[:,4], winlen, 1)
+winlen//=2
+if winlen%2 == 0: winlen+=1
+xeq = sg(xeq, winlen, 1)
+xex = sg(xex, winlen, 1)
+xd[:,4] = sg(xd[:,4], winlen, 1)
+
+exploc = xst[:,5].argmax()
 xu = n.genfromtxt('{}/ur_profiles.dat'.format(exppath), delimiter=',', usecols=(0,3*exploc+2))
 xu[:,1]*=100
 # Limitload y-coord, ur/Ro
@@ -235,4 +249,4 @@ if export:
     ax3.plot(simdata[:,4], simdata[:,1])
     ax4.plot(expLEprof[:,0], expLEprof[:,1:])
     ax4.plot(simLEprof[:,0], simLEprof[:,1:])
-    p.show()
+    #p.show()

@@ -14,7 +14,7 @@ q, [:,2] = Angle coordinate theta
 fullring = False
 
 cdt = float(argv[1])
-N = int(argv[2]) # Width of imperf
+N = float(argv[2]) # Width of imperf
 
 Lg = 2
 
