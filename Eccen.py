@@ -28,12 +28,14 @@ try:
     Lg = float(argv[2])
     R = float(argv[3])
     cdt = float(argv[4])
+    N = float(argv[5])
 except IndexError:
     print('***Eccen.py: ***\n*** argv err ***\n')
     ecc = 0
     Lg = 4/2
     R = .125
     cdt = 0
+    N = 2
 
 # [0] rho, [1]Z, [2]Theta, [3] NodeNum
 NC = n.load('./ConstructionFiles/nc_all.npy')
@@ -68,8 +70,8 @@ def CalcOD(Y):
 # Now apply circ. imperf.
 # R == ID Theta <= t/iR and Z <= R_mean
 if cdt > 0:
-    rng = (NC[:,0]==ID) & (NC[:,2] <= 2*tg/ID) & (NC[:,1] <= ID+tg/2)
-    dR = cdt*tg*n.cos(pi*NC[rng,2]/(2*2*tg/ID))
+    rng = (NC[:,0]==ID) & (NC[:,2] <= N*tg/ID) & (NC[:,1] <= ID+tg/2)
+    dR = cdt*tg*n.cos(pi*NC[rng,2]/(2*N*tg/ID))
     # Reduce dR by .5 for those nodes at the top of the imperf to reduce the sharpness of the geom
     rng2 = (NC[rng,1]==NC[rng,1].max())
     dR[rng2]*=.5

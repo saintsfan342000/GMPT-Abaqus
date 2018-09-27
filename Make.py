@@ -16,13 +16,19 @@ if len(argv) < 7:
     print('[5] Input file name')
     print('[6] Constitutive model: "vm", "h8", or "anis"')
     print('[7] (Optional) Circumferential Imperfection (as fraction, not pctg)')
+    print('[8] (Optional) Width of Circ. Imperf as number of wall-thicknesses (default 2)')
     println()
 else:
     if len(argv) == 7:
         argv, expt, num_el_fine_th, dt, eccen, inpname, constit = argv
-        cdt = 0
+        cdt = '0'
+        imperf_th = '2'
     elif len(argv) == 8:
         argv, expt, num_el_fine_th, dt, eccen, inpname, constit, cdt = argv
+        imperf_th = '2'
+    elif len(argv) == 9:
+        (argv, expt, num_el_fine_th, 
+            dt, eccen, inpname, constit, cdt, imperf_th) = argv
     else:
         raise IndexError('Too many args given!')
     # expt, num_el_fine_th, dt, eccen, inpname, constit = '1', '3', '0', 'auto', 'blah', 'vm'  # For copying/debugging purposes
@@ -66,13 +72,14 @@ else:
     ### Sets
     println()
     print('Generating node and element sets.')
-    os.system('python Sets.py {}'.format(cdt))
+    os.system('python Sets.py {} {}'.format(cdt, imperf_th))
     print('Done.')
 
     ### Eccentricity
     println()
     print('Generating Eccentricity.')
-    os.system('python Eccen.py {} {} {} {}'.format(eccen, Lg, R, cdt))
+    os.system('python Eccen.py {} {} {} {} {}'.format(
+                              eccen, Lg, R, cdt, imperf_th))
     print('Done.')
 
     ### Write Input
@@ -81,9 +88,9 @@ else:
     os.system(('python WriteInput.py {:s} {:s} {:s} ' +
                 '{:s} {:s} {:s} ' + 
                 '{:s} {:s} {:s} ' +
-                '{:s} {}').format(
+                '{:s} {:s} {:s}').format(
               expt, inpname, constit, 
               num_el_fine_th, dt, str(eccen), 
               ID, Rm, tg,
-              alpha, cdt ))
+              alpha, cdt, imperf_th ))
     print('Done!')

@@ -12,7 +12,7 @@ Writes the input file
 
 fullring = False
 
-if len(argv[1:]) == 11:
+if len(argv[1:]) == 12:
     expt = int(argv[1])
     inpname = argv[2]
     constit = argv[3]
@@ -24,6 +24,7 @@ if len(argv[1:]) == 11:
     t = float(argv[9])
     alpha = float(argv[10])
     cdt = float(argv[11])
+    impN = (argv[12])
 else:
     raise ValueError('Wrong number of args. Require 11')
 
@@ -71,6 +72,7 @@ fid.write('** constit = "{}"\n'.format(constit))
 fid.write('** Fluid Cavity and elements.  If alpha = 0.5, then flux control\n')
 fid.write('** {} nodes, {} elements.\n'.format(nodelist.shape[0], elemlist.shape[0]))
 z = time.localtime()
+fid.write('** Circ. Imperf. Width = {}*tg\n'.format(impN))
 fid.write('** Generated on {}/{}/{} at {}:{}\n'.format(z[1],z[2],z[0],z[3],z[4]))
 
 ## HEADING and PREPRINT

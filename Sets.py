@@ -14,6 +14,8 @@ q, [:,2] = Angle coordinate theta
 fullring = False
 
 cdt = float(argv[1])
+N = int(argv[2]) # Width of imperf
+
 Lg = 2
 
 nodelist = ['nc_cors', 'nc_fine', 'nc_med',
@@ -127,7 +129,7 @@ if not fullring:
 if cdt > 0:
     fid.write('*nset, nset=NS_CIRCIMPERF\n')
     # Get the ID and thickness
-    rng = (ni_all[:,0]==0) & (nc_all[:,2] <= 2*tg/ID) & (nc_all[:,1] <= ID+tg/2)
+    rng = (ni_all[:,0]==0) & (nc_all[:,2] <= N*tg/ID) & (nc_all[:,1] <= ID+tg/2)
     nodenums = nc_all[rng,3]
     for i,no in enumerate(nodenums):
         if ((i+1)%16 == 0) or (i == len(nodenums)-1):
