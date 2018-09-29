@@ -11,7 +11,7 @@ Compare the strain paths, sts-stns, and ur_profs
 '''
 
 save = 1
-export = 0
+export = 1
 
 try:
     case = argv[1]
@@ -210,7 +210,7 @@ for k, (exp,job) in enumerate(zip(expts, jobno)):
     ax2.plot(d[simloc,11], d[simloc,4], 'rD')
     ax2.plot(xeq[exploc], xst[exploc,5], 'rD')
     if k == len(expts) - 1:
-        ax2.axis(xmin=0, xmax=10)
+        ax2.axis(xmin=0, xmax=10, ymin=0)
         ax2.set_xlabel('e$_\\theta$ (%)')
         ax2.set_ylabel('$\\Sigma_\\theta$\n(ksi)')
         #f.ezlegend(ax2, loc='upper right')

@@ -208,7 +208,7 @@ if constit in ['vm', 'VM']:
         mat = matfid.read()
         fid.write(mat)
         matfid.close()
-elif constit == 'H8':
+elif constit in ['h8', 'H8']:
     with open('./ConstructionFiles/abaqus_material_H8.txt','r') as matfid:
         mat = matfid.read()
         fid.write(mat)
