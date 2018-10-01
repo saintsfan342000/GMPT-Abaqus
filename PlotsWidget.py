@@ -7,7 +7,7 @@ import figfun as f
 p.style.use('mysty')
 import glob
 import os
-
+from scipy.signal import savgol_filter as sg
 size_factor = .65
 
 name = glob.glob('*_LEprof.dat')[0].split('_')[0]
@@ -34,11 +34,19 @@ key = n.genfromtxt('{}/../ExptSummary.dat'.format(exppath), delimiter=',')
 key = key[ key[:,0] == int(exp) ].ravel()
 Ro, to = key[6:8]
 
+alpha = key[4]
+if alpha > 0.5:
+    x_xmin = 0
+    x_xmax = None
+else:
+    x_xmin=None
+    x_xmax = 0
+
 # Simulation data
-d = n.genfromtxt('{}_results.dat'.format(name), delimiter=',')
-# [0] Force (kip), [1]Pressure (ksi), [2]NomAxSts, [3]NomHoopSts, [4]d/Lg lo, 
-# [5]d/Lg hi, [6,7,8]S11,22,33, [9,10,11]LE11,22,33, [12]Vol
-d[:,[4,5,9,10,11]]*=100
+#[0] Force (kip), [1]Pressure (ksi), [2]Vol, [3]NomAxSts, [4]NomHoopSts, [5]d/Lg lo,
+# [6]d/Lg Back, [7,8,9]S11,22,33, [10,11,12]LE11,22,33, [13]PEEQ(SDV1), [14]EqSts(SDV2)
+d = n.genfromtxt('{}_NewResults.dat'.format(name), delimiter=',')
+d[:,[5,6,10,11,12]]*=100
 simloc = n.argmax(d[:,1])
 u = n.genfromtxt('{}_UR.dat'.format(name), delimiter=',').T
 u = u[ u[:,0] <= 2]
@@ -66,7 +74,18 @@ xstn = n.log(1+xstn)*100
 xex, xeq = xstn.T
 xst = n.genfromtxt('{}/STPF.dat'.format(exppath), delimiter=',', usecols=(range(6)))
 # [0]Stage, [1]Time, [2]Force(kip), [3]Pressure(ksi), [4]NomAxSts(ksi), [5]NomHoopSts(ksi)
-exploc = xst[:,3].argmax()
+
+winlen = xst.shape[0]//10
+if winlen%2 == 0: winlen+=1
+xst[:,5] = sg(xst[:,5], winlen, 1)
+xst[:,4] = sg(xst[:,4], winlen, 1)
+winlen//=2
+if winlen%2 == 0: winlen+=1
+xeq = sg(xeq, winlen, 1)
+xex = sg(xex, winlen, 1)
+xd[:,4] = sg(xd[:,4], winlen, 1)
+
+exploc = xst[:,5].argmax()
 xu = n.genfromtxt('{}/ur_profiles.dat'.format(exppath), delimiter=',', usecols=(0,3*exploc+2, -1))
 xu[:,1:]*=100
 # Limitload y-coord, ur/Ro
@@ -104,8 +123,8 @@ fig = p.figure(figsize=(W,H))
 for i in [1,2,3,4,'_sl']:
     exec('ax{} = fig.add_axes(ax{}_loc)'.format(i,i))
 
-expcolor = 'C0'
-simcolor = 'C1'
+expcolor = 'C1'
+simcolor = 'C0'
 
 # ax1:  LEp Profile
 # Exp at LL and failure
@@ -113,7 +132,7 @@ ax1.plot(xlep[:,0]/to, xlep[:,exploc+1], expcolor)
 ax1.plot(xlep[:,0]/to, xlep[:,-1], expcolor)
 # Initial Sim
 line1, = ax1.plot(lep[:,0],lep[:,1], simcolor)
-ax1.axis([-8,8,0,n.nanmax(xlep[:,1:])*1.05])
+ax1.axis([-8,8,0,.35])
 ax1.set_xlabel('s/t$_\\mathsf{o}$')
 ax1.set_ylabel('e$_\\mathsf{e}$')
 f.myax(ax1, autoscale='preserve')
@@ -134,31 +153,31 @@ f.myax(ax2, nudge=('left',.3,.5), autoscale='preserve')
 # Exp. response and LL
 ax3.plot(xeq, xst[:,5], expcolor)
 # Sim response and LL
-ax3.plot(d[:,10], d[:,3], simcolor)
+ax3.plot(d[:,11], d[:,4], simcolor)
 ax3.plot(xeq[exploc], xst[exploc,5], '^', mfc=expcolor, mec='k')
-ax3.plot(d[simloc,10], d[simloc,3], '^', mfc=simcolor, mec='k')
+ax3.plot(d[simloc,11], d[simloc,4], '^', mfc=simcolor, mec='k')
 # Sim marker initial value
-line3, = ax3.plot(d[0,10], d[0,3], 'o', ms=7, alpha=0.75)
+line3, = ax3.plot(d[0,11], d[0,4], 'o', ms=7, alpha=0.75)
 #if not exp in [1,4]:
 #    ax3.axis(xmin=0,ymin=0)
-ax3.axis(xmin=0)
+ax3.axis(xmin=0, ymin=0)
 ax3.set_xlabel('$\\bar{\\epsilon}_\\theta$ (%)')
 ax3.set_ylabel('$\\sigma_\\theta$\n($\\mathsf{ksi}$)')
 f.myax(ax3, autoscale='preserve')
 
 # ax4:  Ax-sts / ax-stn
 # Exp reponse and LL
-ax4.plot(xd[:,4], xst[:,4], expcolor)
+ax4.plot(xex, xst[:,4], expcolor)
 # Sim response and LL
-ax4.plot(d[:,4],d[:,2], simcolor)
-ax4.plot(d[simloc,4],d[simloc,2], '^', mfc=simcolor, mec='k')
-ax4.plot(xd[exploc,4], xst[exploc,4], '^', mfc=expcolor, mec='k')
+ax4.plot(d[:,12],d[:,3], simcolor)
+ax4.plot(d[simloc,12],d[simloc,3], '^', mfc=simcolor, mec='k')
+ax4.plot(xex[exploc], xst[exploc,4], '^', mfc=expcolor, mec='k')
 # Sim marker initial value
-line4, = ax4.plot(d[0,4], d[0,2], 'o', ms=7, alpha=0.75)
+line4, = ax4.plot(d[0,12], d[0,3], 'o', ms=7, alpha=0.75)
 ax4.axis(ymax=1.1*xst[:,4].max())
 #if not exp in [1,4]:
 #    ax4.axis(xmin=0,ymin=0, ymax=1.05*xst[:,4].max())
-ax4.axis(ymin=0)
+ax4.axis([x_xmin, x_xmax, 0, None])
 ax4.set_xlabel('$\\bar{\\epsilon}_\\mathsf{x}$ (%)')
 ax4.set_ylabel('$\\sigma_{\\mathsf{x}}$\n($\\mathsf{ksi}$)')
 f.myax(ax4, autoscale='preserve')
@@ -173,8 +192,8 @@ def update(val):
     i = int(val)
     line1.set_ydata(lep[:,1+i])
     line2.set_xdata(100*u[:,i+2]/u[:,1])
-    line3.set_data(d[i,10], d[i,3])
-    line4.set_data(d[i,4], d[i,2])
+    line3.set_data(d[i,11], d[i,4])
+    line4.set_data(d[i,12], d[i,3])
     fig.canvas.draw_idle()
 
 slider.on_changed(update)

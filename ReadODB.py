@@ -107,14 +107,21 @@ for i in range(num_incs):
     try:
         peeq_set =  h_All_Frames[i].fieldOutputs['SDV1'].getSubset(region=h_elset_th).values
         eqsts_set =  h_All_Frames[i].fieldOutputs['SDV2'].getSubset(region=h_elset_th).values
-    except:
+        for j in range(numel_th):
+             tempsts += stresses[j].data[:3]
+             tempstn += strains[j].data[:3]
+             temppeeq += peeq_set[j].data
+             tempeqsts = eqsts_set[j].data
+    except KeyError:
         peeq_set =  h_All_Frames[i].fieldOutputs['PEEQ'].getSubset(region=h_elset_th).values
-        eqsts_set =  h_All_Frames[i].fieldOutputs['MISESONLY'].getSubset(region=h_elset_th).values
-    for j in range(numel_th):
-         tempsts += stresses[j].data[:3]
-         tempstn += strains[j].data[:3]
-         temppeeq += peeq_set[j].data
-         tempeqsts = eqsts_set[j].data
+        for j in range(numel_th):
+             tempsts += stresses[j].data[:3]
+             tempstn += strains[j].data[:3]
+             temppeeq += peeq_set[j].data
+             S = stresses[j].data
+             tempeqsts += (.5*( (S[0]-S[1])**2 + (S[1]-S[2])**2 + (S[2]-S[0])**2 +
+                                6*(S[3]**2 + S[4]**2 + S[5]**2)  ) )**.5
+
     sts[i] = tempsts/numel_th
     stn[i] = tempstn/numel_th
     peeq[i] = temppeeq/numel_th
@@ -191,7 +198,7 @@ def headerline(fname, hl):
 
 # Save
 fname = '%s_NewResults.dat'%(job)
-np.savetxt(fname, X = np.c_[F, P, V, sig_x, sig_q, d_lo, d_back, sts, stn, peeq, eqsts*1000], fmt='%.6f', delimiter=', ')
+np.savetxt(fname, X = np.c_[F, P, V, sig_x, sig_q, d_lo, d_back, sts, stn, peeq, eqsts], fmt='%.6f', delimiter=', ')
 hl = '#[0] Force (kip), [1]Pressure (ksi), [2]Vol, [3]NomAxSts, [4]NomHoopSts,' 
 hl += ' [5]d/Lg lo, [6]d/Lg Back, [7,8,9]S11,22,33, [10,11,12]LE11,22,33, [13]PEEQ(SDV1), [14]EqSts(SDV2)'
 headerline(fname, hl)

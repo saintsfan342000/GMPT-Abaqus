@@ -10,7 +10,7 @@ import os
 Compare the strain paths, sts-stns, and ur_profs
 '''
 
-save = 1
+save = 0
 export = 1
 
 try:
@@ -32,11 +32,12 @@ elif case.upper() in ['1PCT']:
 elif case.upper() in ['2PCT']:
     expts = [2,3,4,8,11,12]
     jobno = [4,5,4,9,4, 4]
-elif case.upper() in ['FILTER', 'FILT']:
-    case = 'Filter'
+elif case.upper() in ['H8']:
     expts = [11, 4, 2, 8, 3, 12, 10]
-    jobno = [2,  2, 2, 6, 3, 2,  5]
-
+    jobno = [8888]*len(expts)
+elif case.upper() in ['VM']:
+    expts = [11, 4, 2, 8, 3, 12, 10]
+    jobno = [2222]*len(expts)
 else:
     case = 'BestSoFar'
     expts = [11, 4, 2, 8, 3, 12, 10]
@@ -50,6 +51,10 @@ if export:
     simhead = 'Sim AxSts, HoopSts, AxStn, HoopStn'.split(', ')
     LL = n.empty((len(expts), 10))
     FA = n.empty((len(expts), 10))
+    table_head = ('Expt, alpha, Rm, t, Ecc(%), SigX_LL, SigTH_LL, eX_LL, eQ_LL, ' + 
+        'SigX_Fa, SigTh_Fa, e_Fa_Avg, eQ_Fa_Avg, eX_Fa_max, eQ_Fa_max').split()
+    table = n.zeros((len(expts), len(table_head)))
+    table = pd.DataFrame(table, index=expts, columns=table_head)
     
 expts = n.array(expts)
 jobno = n.array(jobno)   
@@ -62,6 +67,8 @@ for k,i in enumerate(expts):
     key[loc,1] = jobno[k]
 
 expts, jobno = key[:,:2].astype(int).T
+Radii, thicknesses, eccens = key[:, 6:].T
+alphs = key[:,4]
 
 repl = {'88':'11', '99':'8', '00':'8'}
 
@@ -86,7 +93,8 @@ ax3 = fig.add_axes([pad/W, (pad+vgap/3-1/3)/H, axwt/W, (axht+2/3)/H])
 ax4 = fig.add_axes([(pad+hgap+axwt)/W, .8*pad/H, axwt/W, 1.5*axht/H])
 
 
-for k, (exp,job) in enumerate(zip(expts, jobno)):
+for k, (exp,job, Rm, th, ecc, alp) in enumerate(zip(expts, 
+                                    jobno, Radii, thicknesses, eccens, alphs)):
 
     print(case, expdataplot)
     st = str(exp)
@@ -163,17 +171,16 @@ for k, (exp,job) in enumerate(zip(expts, jobno)):
     xst = n.genfromtxt('{}/STPF.dat'.format(exppath), delimiter=',', usecols=(range(6)))
     # [0]Stage, [1]Time, [2]Force(kip), [3]Pressure(ksi), [4]NomAxSts(ksi), [5]NomHoopSts(ksi)
     
-    if case == 'Filter':
-        from scipy.signal import savgol_filter as sg
-        winlen = xst.shape[0]//10
-        if winlen%2 == 0: winlen+=1
-        xst[:,5] = sg(xst[:,5], winlen, 1)
-        xst[:,4] = sg(xst[:,4], winlen, 1)
-        winlen//=2
-        if winlen%2 == 0: winlen+=1
-        xeq = sg(xeq, winlen, 1)
-        xex = sg(xex, winlen, 1)
-        xd[:,4] = sg(xd[:,4], winlen, 1) 
+    from scipy.signal import savgol_filter as sg
+    winlen = xst.shape[0]//10
+    if winlen%2 == 0: winlen+=1
+    xst[:,5] = sg(xst[:,5], winlen, 1)
+    xst[:,4] = sg(xst[:,4], winlen, 1)
+    winlen//=2
+    if winlen%2 == 0: winlen+=1
+    xeq = sg(xeq, winlen, 1)
+    xex = sg(xex, winlen, 1)
+    xd[:,4] = sg(xd[:,4], winlen, 1) 
     
     exploc = xst[:,5].argmax()
     xu = n.genfromtxt('{}/ur_profiles.dat'.format(exppath), delimiter=',', usecols=(0,3*exploc+2,-1))
@@ -252,15 +259,30 @@ for k, (exp,job) in enumerate(zip(expts, jobno)):
                     header=exphead, index=False)
         pd.DataFrame(simdata).to_excel(fid, sheet_name='GMPT-{} || {:.2f}'.format(exp,alpha), 
                     header=simhead, index=False, startcol=(expdata.shape[1]+2))
-               
+
+        xmax = n.genfromtxt('{}/MaxPt.dat'.format(exppath), delimiter=',')[-1]
+        # [0]NEx [1]NEy [2]Gamma [3]F11-1 [4]F22-1 [5]atan(F12/F22) [6]epeq
+        xmax = n.log(1+xmax)*100
+        # [0]Expt, [1]alpha, [2]Rm, [3]t, [4]Ecc(%), [5]SigX_LL, [6]SigTH_LL, [7]eX_LL, [8]eQ_LL' + 
+        # [9]SigX_Fa, [10]SigTh_Fa, [11]e_Fa_Avg, [12]eQ_Fa_Avg, [13]eX_Fa_max, [14]eQ_Fa_max'
+        data = [exp, '{:g}'.format(alp), '{:.1f}\n{:.3f}'.format(Rm*25.4,Rm),
+                '{:.1f}\n{:.3f}'.format(th*25.4,th), '{:.2f}'.format(ecc)]
+        data.extend(['{:.0f}\n{:.1f}'.format(j*6.89655, j) for j in LL[k,2:4]])
+        data.extend(['{:.2f}'.format(j) for j in LL[k,4:6]])
+        data.extend(['{:.0f}\n{:.1f}'.format(j*6.89655, j) for j in FA[k,2:4]])
+        data.extend(['{:.2f}'.format(j) for j in FA[k,4:6]])
+        data.extend(['{:.2f}'.format(j) for j in xmax[:2][::-1]])
+        table.loc[exp] = data
 
 if export:
     
     pd.DataFrame(LL).to_excel(fid, sheet_name='LL', header=['Exp', 'Alpha']+exphead+simhead, index=False)
     pd.DataFrame(FA).to_excel(fid, sheet_name='Failure', header=['Exp', 'Alpha']+exphead+simhead, index=False)
+    pd.DataFrame(table).to_excel(fid, sheet_name='Summary Table', index=False)
     fid.close()
               
 fig.suptitle(case)
+
 if save:
     fig.savefig('AllPlot_{}.jpg'.format(case), dpi=200, bbox_inches='tight')
     fig.savefig('AllPlot_{}.pdf'.format(case),bbox_inches='tight')
